@@ -1,10 +1,21 @@
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  overflow-x: hidden; /* Proíbe o corte lateral e a rolagem para os lados */
+/* src/index.css - adicione isso no topo (ou no CSS global) */
+
+/* Garante que o conteúdo abaixo do header tenha padding igual à altura real do header.
+   A variável --site-header-height é definida pelo Header.jsx via JS. */
+main {
+  padding-top: var(--site-header-height, 88px); /* fallback caso a variável não exista */
+  transition: padding-top 120ms ease;
 }
 
-#root {
+/* Evita overflow lateral que pode gerar rolagem e cortes */
+html, body, #root {
   width: 100%;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* Se já tiver um bottom nav fixo, deixe espaço inferior também */
+@media (max-width: 760px) {
+  main { padding-bottom: 88px; }
 }

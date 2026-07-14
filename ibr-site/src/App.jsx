@@ -1,5 +1,5 @@
 // src/App.jsx
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, Navigate, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import Home from './pages/Home.jsx'
 import Restricoes from './pages/Restricoes.jsx' // antes: Escalas.jsx
@@ -25,13 +25,69 @@ function ProtectedRoute({ children, requireAdmin = false }) {
   return children
 }
 
+const DEFAULT_LOGO = 'https://www.instagram.com/ibrjdguaruja.jpg' // URL padrão (substitua se quiser outra)
+
 function Header() {
   const navigate = useNavigate()
   const user = getCurrentUser()
 
+  const [logoUrl, setLogoUrl] = useState(() => {
+    try {
+      return localStorage.getItem('ibr_logo_url') || DEFAULT_LOGO
+    } catch {
+      return DEFAULT_LOGO
+    }
+  })
+
+  useEffect(() => {
+    function onStorage(e) {
+      if (!e || e.key === 'ibr_logo_url') {
+        try {
+          setLogoUrl(localStorage.getItem('ibr_logo_url') || DEFAULT_LOGO)
+        } catch {
+          setLogoUrl(DEFAULT_LOGO)
+        }
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
   function handleLogoClick() {
-    if (user && user.is_admin) navigate('/admin')
-    else navigate('/')
+    // Se for admin: oferecer editar a URL (prompt) ou ir ao Admin
+    if (user && user.is_admin) {
+      const wantsEdit = window.confirm('Você quer alterar a URL da logo? OK = Alterar URL · Cancel = Ir para Painel Admin')
+      if (wantsEdit) {
+        const current = logoUrl === DEFAULT_LOGO ? '' : logoUrl
+        const newUrl = window.prompt('Cole a URL completa da imagem (https://www.instagram.com/ibrjdguaruja/.jpg):', current)
+        if (newUrl === null) {
+          // usuário cancelou prompt => nada
+          return
+        }
+        const trimmed = String(newUrl || '').trim()
+        try {
+          if (!trimmed) {
+            localStorage.removeItem('ibr_logo_url')
+            setLogoUrl(DEFAULT_LOGO)
+            alert('Logo resetada para o padrão.')
+          } else {
+            localStorage.setItem('ibr_logo_url', trimmed)
+            setLogoUrl(trimmed)
+            alert('Logo atualizada.')
+          }
+          // notifica outras abas
+          try { localStorage.setItem('ibr_logo_url_sync', String(Date.now())) } catch {}
+        } catch (err) {
+          console.error('Erro ao salvar logoUrl', err)
+          alert('Não foi possível salvar a URL localmente.')
+        }
+      } else {
+        navigate('/admin')
+      }
+    } else {
+      // não-admin: comportamento original (navegar pra home)
+      navigate('/')
+    }
   }
 
   function logout() {
@@ -46,8 +102,13 @@ function Header() {
       <header style={{ background: '#fff', borderBottom: '1px solid #eee', padding: '12px 18px', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16 }}>
           <div onClick={handleLogoClick} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}>
-            {/* Se preferir usar uma imagem local, substitua por import e use src={logo} */}
-            <img src="https://www.instagram.com/ibrjdguaruja.jpg" alt="Logo IBR" style={{ height: 40, width: 'auto', borderRadius: 4 }} />
+            {/* Carrega a logo pela URL; fallback para DEFAULT_LOGO em caso de erro */}
+            <img
+              src={logoUrl}
+              alt="Logo IBR"
+              style={{ height: 40, width: 'auto', borderRadius: 4, objectFit: 'cover' }}
+              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = DEFAULT_LOGO }}
+            />
             <div>
               <div style={{ fontWeight: 700, color: '#7f1d1d' }}>IBR</div>
               <div style={{ fontSize: 12, color: '#6b7280' }}>Jardim Guarujá</div>
@@ -56,14 +117,9 @@ function Header() {
 
           {/* centraliza os botões */}
           <nav style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'center' }}>
-            <Link to="/" style={headerBtnStyle}>Início</Link>
-
             {/* link visível "Escalas" agora aponta para /restricoes */}
-            <Link to="/restricoes" style={headerBtnStyle}>Escalas</Link>
-
-            <Link to="/escala-do-mes" style={headerBtnStyle}>Escala do Mês</Link>
+            <Link to="/restricoes" style={headerBtnStyle}>Restrições</Link>
             <Link to="/informativos" style={headerBtnStyle}>Informativos</Link>
-            <Link to="/tutoriais" style={headerBtnStyle}>Tutoriais</Link>
           </nav>
 
           <div style={{ marginLeft: 'auto' }}>

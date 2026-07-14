@@ -1,34 +1,32 @@
 // src/pages/Home.jsx
 import React from 'react';
-import { Link } from 'react-router-dom';
-import '../components/Home.css'; // Certifique-se de ter este arquivo ou use App.css
+import '../components/Home.css'; // ou use seu CSS global
 
 export default function Home() {
+  const versiculo = {
+    texto: 'Lâmpada para os meus pés é a tua palavra e luz para o meu caminho.',
+    referencia: 'Salmos 119:105'
+  };
+
   return (
-    <div className="home-container">
-      {/* Texto de Bem-vindo */}
+    <div className="home-page">
+      {/* Conteúdo superior (logo, navbar já existentes) */}
+
+      {/* Versículo do dia: centralizado visualmente */}
+      <section className="verse-section" aria-label="Versículo do dia">
+        <div className="verse-card">
+          <p className="verse-text">“{versiculo.texto}”</p>
+          <p className="verse-ref">{versiculo.referencia}</p>
+        </div>
+      </section>
+
+      {/* Resto do conteúdo — por exemplo welcome card e menu inferior */}
       <div className="welcome-card">
         <h1>Bem-vindo à IBR Jardim Guarujá</h1>
         <p>Conectados em fé, servindo ao Senhor com amor.</p>
       </div>
 
-      {/* Menu Inferior Responsivo */}
-      <nav className="bottom-nav">
-        <Link to="/" className="nav-item">
-          <span className="nav-icon">🏠</span>
-          <span className="nav-label">INÍCIO</span>
-        </Link>
-        
-        <Link to="/escalas" className="nav-item">
-          <span className="nav-icon">📅</span>
-          <span className="nav-label">ESCALA</span>
-        </Link>
-        
-        <Link to="/informativos" className="nav-item">
-          <span className="nav-icon">🎓</span>
-          <span className="nav-label">TUTORIAIS</span>
-        </Link>
-      </nav>
+      {/* ...menu inferior etc */}
     </div>
   );
 }
