@@ -47,7 +47,7 @@ function Header() {
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16 }}>
           <div onClick={handleLogoClick} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}>
             {/* Se preferir usar uma imagem local, substitua por import e use src={logo} */}
-            <img src="https://yt3.googleusercontent.com/ytc/AIdro_lT-bUYeCrQuU__DE2-9o79gZMI_ZPl1s1zd5TIh89rKQ=s160-c-k-c0x00ffffff-no-rj" alt="Logo IBR" style={{ height: 40, width: 'auto', borderRadius: 4 }} />
+            <img src="https://www.instagram.com/ibrjdguaruja.jpg" alt="Logo IBR" style={{ height: 40, width: 'auto', borderRadius: 4 }} />
             <div>
               <div style={{ fontWeight: 700, color: '#7f1d1d' }}>IBR</div>
               <div style={{ fontSize: 12, color: '#6b7280' }}>Jardim Guarujá</div>

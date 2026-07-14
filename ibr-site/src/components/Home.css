@@ -1,0 +1,82 @@
+/* src/components/Home.css */
+
+/* Container Principal */
+.home-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+  background-color: #fff;
+}
+
+/* Cartão de Bem-vindo */
+.welcome-card {
+  width: 100%;
+  max-width: 600px;
+  background: #fdfdfd;
+  padding: 40px 20px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  margin-bottom: 80px; /* espaço para o menu inferior não cobrir o texto */
+}
+
+.welcome-card h1 {
+  font-size: 24px;
+  color: #1a1a1a;
+  margin-bottom: 10px;
+}
+
+.welcome-card p {
+  font-size: 16px;
+  color: #666;
+}
+
+/* Menu no Rodapé (Onde estava cortando) */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: #fff;
+  display: flex;
+  justify-content: space-around; /* Distribui os itens igualmente */
+  padding: 10px 5px;
+  border-top: 1px solid #eee;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+  box-sizing: border-box;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  flex: 1; /* Faz cada botão ocupar o mesmo espaço */
+  max-width: 120px;
+  background-color: #101828; /* Cor escura que você usou */
+  margin: 0 4px;
+  padding: 10px 5px;
+  border-radius: 8px;
+  color: white;
+}
+
+.nav-icon {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.nav-label {
+  font-size: 10px;
+  font-weight: bold;
+}
+
+/* -- AJUSTE PARA TELAS MUITO PEQUENAS -- */
+@media (max-width: 360px) {
+  .welcome-card h1 { font-size: 20px; }
+  .nav-label { font-size: 9px; }
+  .nav-item { margin: 0 2px; }
+}

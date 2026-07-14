@@ -9,13 +9,16 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Substitua pelo ID do vídeo do YouTube que deseja usar:
+  // Substitua pelo ID do YouTube que você quer usar (parte após v=)
   const videoId = '7XqWVfI-UM8';
 
   async function handleLogin(e) {
     e.preventDefault();
     const trimmed = String(nome || '').trim();
-    if (!trimmed) return alert('Digite seu nome.');
+    if (!trimmed) {
+      alert('Digite seu nome.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -49,6 +52,7 @@ export default function Login() {
 
   return (
     <div className="login-root">
+      {/* Vídeo de fundo (YouTube) */}
       <div className="video-background" aria-hidden="true">
         <iframe
           title="background-video"
@@ -58,30 +62,36 @@ export default function Login() {
         />
       </div>
 
-      <div className="login-card" role="main" aria-label="Tela de login">
-        <img src="/ibr.jpg" alt="IBR Logo" className="login-logo" />
+      {/* Cartão de login */}
+      <main className="login-wrapper">
+        <div className="login-card" role="main" aria-label="Tela de login">
+          <img src="/ibr.jpg" alt="IBR Logo" className="login-logo" />
 
-        <h2 className="verse-title">Versículo do Dia</h2>
-        <p className="verse-text">
-          Lâmpada para os meus pés é a tua palavra e luz para o meu caminho.
-          <span className="verse-ref">Salmos 119:105</span>
-        </p>
+          <h2 className="verse-title">Versículo do Dia</h2>
+          <p className="verse-text">
+            Lâmpada para os meus pés é a tua palavra e luz para o meu caminho.
+            <span className="verse-ref">Salmos 119:105</span>
+          </p>
 
-        <form onSubmit={handleLogin}>
-          <input
-            type="text"
-            className="login-input"
-            placeholder="Digite seu nome completo"
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            aria-label="Nome"
-          />
+          <form onSubmit={handleLogin} className="login-form">
+            <label className="sr-only" htmlFor="nome">Nome</label>
+            <input
+              id="nome"
+              type="text"
+              className="login-input"
+              placeholder="Digite seu nome completo"
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              aria-label="Nome"
+              autoComplete="name"
+            />
 
-          <button type="submit" className="login-button" disabled={loading}>
-            {loading ? 'Consultando...' : 'ENTRAR'}
-          </button>
-        </form>
-      </div>
+            <button type="submit" className="login-button" disabled={loading}>
+              {loading ? 'Consultando...' : 'ENTRAR'}
+            </button>
+          </form>
+        </div>
+      </main>
     </div>
   );
 }

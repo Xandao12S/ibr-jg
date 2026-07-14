@@ -70,7 +70,7 @@ export default function Restricoes() {
       window.dispatchEvent(new Event('storage'))
 
       setRestricoes(novaLista)
-      // opcional: não usar alert se você removeu alerts em todo o projeto
+      // limpa formulário (mantendo base intocada)
       setNome('')
       setData('')
       setPeriodos([])
@@ -182,63 +182,8 @@ export default function Restricoes() {
         </div>
       </form>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '520px 1fr', gap: 16, marginTop: 18 }}>
-        <aside style={{ background: '#fff', padding: 20, borderRadius: 14, boxShadow: '0 10px 30px rgba(15,23,42,0.06)', border: '1px solid #eef2f6' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <div>
-              <h3 style={{ margin: 0, color: '#7f1d1d', fontSize: 20 }}>Nomes e Funções</h3>
-              <div style={{ marginTop: 6, color: '#6b7280', fontSize: 13 }}>Lista sincronizada com o Painel ADM</div>
-            </div>
-            <div style={{ color: '#6b7280', fontSize: 13 }}>{membros.length} membros</div>
-          </div>
-
-          <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
-            {membros.length === 0 ? (
-              <div style={{ color: '#9ca3af', padding: 12 }}>Nenhum membro cadastrado.</div>
-            ) : (
-              membros.map(m => {
-                const isLeader = Array.isArray(m.funcao) ? m.funcao.includes('Líder') : m.funcao === 'Líder'
-                return (
-                  <div key={m.id} style={{ display: 'flex', gap: 14, alignItems: 'center', padding: 14, borderRadius: 12, border: '1px solid #f3f4f6', background: '#fff' }}>
-                    <div style={{ width: 64, height: 64, borderRadius: 12, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#111', fontSize: 18 }}>
-                      {initials(m.nome)}
-                    </div>
-
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ fontWeight: 900, fontSize: 18, color: isLeader ? '#b8860b' : '#111' }}>{m.nome}</div>
-                        {isLeader && (
-                          <div style={{ padding: '6px 10px', borderRadius: 999, background: '#fff4d9', color: '#b8860b', fontSize: 13, fontWeight: 800 }}>
-                            Líder
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ color: '#4b5563', fontSize: 15, marginTop: 6 }}>{Array.isArray(m.funcao) ? m.funcao.join(', ') : m.funcao}</div>
-                    </div>
-
-                    <div style={{ textAlign: 'right' }}>
-                      {temPermissaoGeral ? (
-                        <button
-                          onClick={() => {
-                            const nova = membros.filter(x => x.id !== m.id)
-                            localStorage.setItem('membros_ibr', JSON.stringify(nova))
-                            localStorage.setItem('membros_sync', String(Date.now()))
-                            window.dispatchEvent(new Event('storage'))
-                            setMembros(nova)
-                          }}
-                          style={{ background: 'none', border: '1px solid #f3f4f6', padding: '8px 10px', borderRadius: 8, cursor: 'pointer', color: '#b91c1c', fontWeight: 700 }}
-                        >
-                          Remover
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </div>
-        </aside>
-
+      {/* Lista de restrições - agora ocupa toda a largura (sem a seção "Nomes e Funções") */}
+      <div style={{ marginTop: 18 }}>
         <div style={{ background: '#fff', padding: 12, borderRadius: 12, boxShadow: '0 8px 20px rgba(15,23,42,0.04)', border: '1px solid #eef2f6', maxHeight: 600, overflow: 'auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px' }}>
             <h3 style={{ margin: 0, color: '#111', fontSize: 15 }}>Restrições Pendentes</h3>
