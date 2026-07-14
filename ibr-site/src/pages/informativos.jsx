@@ -1,8 +1,8 @@
 import React from 'react'
 
 const avisos = [
-  { id: 1, titulo: 'Culto de Celebração', data: 'Domingo às 19h', desc: 'Esperamos por você e sua família para um tempo precioso.' },
-  { id: 2, titulo: 'Reunião de Líderes', data: 'Quarta às 20h', desc: 'Alinhamento para o próximo trimestre.' },
+  { id: 1, titulo: 'Culto de Celebração', data: 'Domingo às 18h', desc: 'Esperamos por você e sua família para um tempo precioso.' },
+  { id: 2, titulo: 'Culto de Comunhão', data: 'Quarta às 20h', desc: 'Alinhamento para o próximo trimestre.' },
 ]
 
 export default function Informativos() {
