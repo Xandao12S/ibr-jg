@@ -1,125 +1,110 @@
-// src/pages/EscalaDoMes.jsx
+// src/pages/Escalas.jsx
 import React, { useEffect, useState } from 'react'
 
-export default function EscalaDoMes() {
-  const [escala, setEscala] = useState(null)
-  const [ultimaPublicacao, setUltimaPublicacao] = useState(null)
-
-  function carregarEscala() {
-    try {
-      const raw = localStorage.getItem('escala_publicada')
-      const rawAt = localStorage.getItem('escala_publicada_at')
-      let parsed = null
-      try { parsed = JSON.parse(raw) } catch {}
-      let escalaArray = null
-      let publishedAt = rawAt || null
-
-      if (Array.isArray(parsed)) {
-        escalaArray = parsed
-      } else if (parsed && parsed.escala) {
-        escalaArray = parsed.escala
-        publishedAt = parsed.publishedAt || publishedAt
-      } else if (parsed) {
-        escalaArray = parsed
-      }
-
-      setEscala(escalaArray)
-      setUltimaPublicacao(publishedAt)
-    } catch (err) {
-      console.error('Erro ao ler escala_publicada:', err)
-      setEscala(null)
-      setUltimaPublicacao(null)
-    }
-  }
+export default function Escalas() {
+  const [escalaMensal, setEscalaMensal] = useState(null)
 
   useEffect(() => {
-    carregarEscala()
-
-    function handleStorage(e) {
-      if (e.key === 'escala_publicada' || e.key === 'escala_publicada_at') {
-        carregarEscala()
+    const carregarEscala = () => {
+      const stored = localStorage.getItem('escala_mensal')
+      if (stored) {
+        setEscalaMensal(JSON.parse(stored))
       }
     }
-    window.addEventListener('storage', handleStorage)
-    return () => window.removeEventListener('storage', handleStorage)
+    carregarEscala()
+    window.addEventListener('storage', carregarEscala)
+    return () => window.removeEventListener('storage', carregarEscala)
   }, [])
 
-  function formatarData(iso) {
-    try {
-      return new Date(iso + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
-    } catch {
-      return iso
-    }
+  const containerStyle = {
+    padding: '40px 20px',
+    maxWidth: '900px',
+    margin: '0 auto',
+    fontFamily: 'Inter, sans-serif'
   }
 
-  function formatarTimestamp(isoTs) {
-    if (!isoTs) return '—'
-    try {
-      const d = new Date(isoTs)
-      return d.toLocaleString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-    } catch {
-      return isoTs
-    }
+  const cardStyle = {
+    background: '#fff',
+    borderRadius: '12px',
+    padding: '24px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+    border: '1px solid #eee'
+  }
+
+  const diaStyle = {
+    marginBottom: '20px',
+    padding: '15px',
+    background: '#f9f9f9',
+    borderRadius: '8px',
+    borderLeft: '5px solid #6b1515'
+  }
+
+  const turnoTitle = {
+    fontWeight: '800',
+    color: '#6b1515',
+    fontSize: '14px',
+    textTransform: 'uppercase',
+    marginBottom: '8px',
+    marginTop: '10px'
+  }
+
+  const itemStyle = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '5px 0',
+    borderBottom: '1px solid #eee',
+    fontSize: '14px'
   }
 
   return (
-    <div style={{ padding: 20 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-        <div>
-          <h2 style={{ margin: 0 }}>ESCALA DO MES — Escala Publicada</h2>
-          <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
-            Última publicação: {formatarTimestamp(ultimaPublicacao)}
-          </div>
-        </div>
+    <div style={containerStyle}>
+      <h2 style={{ textAlign: 'center', marginBottom: '30px', fontSize: '28px', color: '#1a1a1a' }}>
+        Escala do Mês
+      </h2>
 
-        <div>
-          <button onClick={carregarEscala} style={{ marginRight: 8 }}>Atualizar</button>
-        </div>
-      </div>
+      <div style={cardStyle}>
+        {!escalaMensal ? (
+          <p style={{ textAlign: 'center', color: '#666', padding: '40px' }}>
+            A escala deste mês ainda não foi publicada pela administração.
+          </p>
+        ) : (
+          <div>
+            <h3 style={{ marginBottom: '20px', color: '#333', borderBottom: '2px solid #f0f0f0', paddingBottom: '10px' }}>
+              {escalaMensal.monthLabel}
+            </h3>
 
-      {!escala && (
-        <div style={{ color: '#6b7280' }}>
-          Nenhuma escala publicada ainda.
-        </div>
-      )}
-
-      {escala && (
-        <div style={{ display: 'grid', gap: 12 }}>
-          {escala.map(dia => (
-            <article key={dia.data} style={{ padding: 12, background: '#fff', borderRadius: 8, border: '1px solid #e5e7eb' }}>
-              <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <strong style={{ fontSize: 16 }}>{formatarData(dia.data)}</strong>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>Domingo</div>
+            {escalaMensal.data.map((dia, idx) => (
+              <div key={idx} style={diaStyle}>
+                <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '10px', color: '#111' }}>
+                  {new Date(dia.data + 'T00:00:00').toLocaleDateString('pt-BR', { 
+                    weekday: 'long', 
+                    day: '2-digit', 
+                    month: 'long' 
+                  })}
                 </div>
-              </header>
 
-              <section style={{ marginTop: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                {Object.keys(dia.turnos || {}).length === 0 && (
-                  <div style={{ color: '#9ca3af' }}>Nenhum turno disponível</div>
-                )}
-
-                {Object.entries(dia.turnos || {}).map(([periodo, funcoes]) => (
-                  <div key={periodo} style={{ flex: 1, minWidth: 220 }}>
-                    <div style={{ fontWeight: 700, color: '#7f1d1d', marginBottom: 8 }}>{periodo}</div>
-                    <div style={{ display: 'grid', gap: 6 }}>
-                      {Object.keys(funcoes).length === 0 && (
-                        <div style={{ color: '#9ca3af' }}>Sem funções neste turno</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  {['Manhã', 'Noite'].map(periodo => (
+                    <div key={periodo}>
+                      <div style={turnoTitle}>{periodo}</div>
+                      {dia.turnos[periodo] && Object.entries(dia.turnos[periodo]).length > 0 ? (
+                        Object.entries(dia.turnos[periodo]).map(([funcao, nome]) => (
+                          <div key={funcao} style={itemStyle}>
+                            <span style={{ color: '#555' }}>{funcao}</span>
+                            <span style={{ fontWeight: '600' }}>{nome}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ color: '#999', fontSize: '12px' }}>Sem escala</div>
                       )}
-                      {Object.entries(funcoes).map(([func, nome]) => (
-                        <div key={func} style={{ display: 'flex', justifyContent: 'space-between', background: '#f8fafc', padding: '8px 10px', borderRadius: 6, border: '1px solid #eef2f7' }}>
-                          <div style={{ fontWeight: 600 }}>{func}</div>
-                          <div style={{ color: nome === 'Vago' ? '#b91c1c' : '#111' }}>{nome}</div>
-                        </div>
-                      ))}
                     </div>
-                  </div>
-                ))}
-              </section>
-            </article>
-          ))}
-        </div>
-      )}
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
