@@ -1,35 +1,118 @@
+// src/App.jsx
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom'
+
+// PÁGINAS (confirme que os arquivos existem em src/pages/)
 import Home from './pages/Home'
 import Escalas from './pages/Escalas'
-import Informativos from './pages/Informativos'
-import './index.css'
+import EscalaDoMes from './pages/EscalaDoMes'
+import Admin from './pages/Admin'
 
-function App() {
+// Bottom navigation (coloque o arquivo em src/components/BottomNav.jsx)
+import BottomNav from './components/BottomNav'
+
+// Se você tem um CSS global (Tailwind ou index.css), importe aqui:
+// import './index.css'
+
+/* ---------------------------
+   Header (logo clicável -> /admin)
+   --------------------------- */
+function Header() {
+  const navigate = useNavigate()
+
+  // URL pública da logo (substitua se quiser outra)
+  const logoUrl =
+    'https://yt3.googleusercontent.com/ytc/AIdro_lT-bUYeCrQuU__DE2-9o79gZMI_ZPl1s1zd5TIh89rKQ=s160-c-k-c0x00ffffff-no-rj'
+
+  return (
+    <header style={{ background: '#fff', borderBottom: '1px solid #eee', padding: '12px 18px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Logo clicável que leva ao Admin */}
+        <div
+          onClick={() => navigate('/admin')}
+          style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}
+          title="Acesso ao Painel ADM"
+        >
+          <img
+            src={logoUrl}
+            alt="Logo IBR"
+            style={{ height: 40, width: 'auto', borderRadius: 4 }}
+            onError={(e) => {
+              e.target.style.display = 'none'
+            }}
+          />
+          <div>
+            <div style={{ fontWeight: 700, color: '#7f1d1d' }}>IBR</div>
+            <div style={{ fontSize: 12, color: '#6b7280' }}>Jardim Guarujá</div>
+          </div>
+        </div>
+
+        <nav>
+          <Link to="/" style={{ marginRight: 14, textDecoration: 'none', color: '#374151', fontWeight: 600 }}>
+            Início
+          </Link>
+          <Link to="/escalas" style={{ marginRight: 14, textDecoration: 'none', color: '#374151', fontWeight: 600 }}>
+            Escalas
+          </Link>
+          <Link to="/escala-do-mes" style={{ textDecoration: 'none', color: '#374151', fontWeight: 600 }}>
+            ESCALA DO MES
+          </Link>
+        </nav>
+      </div>
+    </header>
+  )
+}
+
+/* ---------------------------
+   App principal com rotas + BottomNav
+   --------------------------- */
+export default function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
-        <nav className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-10">
-          <div className="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
-            <Link to="/" className="text-xl font-bold tracking-tight text-blue-600">IBR JG</Link>
-            <div className="space-x-6">
-              <Link to="/" className="hover:text-blue-500 transition">Início</Link>
-              <Link to="/escalas" className="hover:text-blue-500 transition">Escalas</Link>
-              <Link to="/informativos" className="hover:text-blue-500 transition">Informativos</Link>
-            </div>
-          </div>
-        </nav>
-
-        <main className="max-w-5xl mx-auto px-4 py-8">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/escalas" element={<Escalas />} />
-            <Route path="/informativos" element={<Informativos />} />
-          </Routes>
-        </main>
+      <div style={{ minHeight: '100vh', background: '#fafafa', paddingBottom: 84 }}>
+        <Header />
+        <MainRoutes />
+        <BottomNav />
       </div>
     </Router>
   )
 }
 
-export default App
+/* Mantemos as rotas em componente separado para organização */
+function MainRoutes() {
+  return (
+    <main style={{ maxWidth: 1100, margin: '20px auto', padding: '0 18px' }}>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/escalas" element={<Escalas />} />
+        <Route path="/escala-do-mes" element={<EscalaDoMes />} />
+        <Route path="/admin" element={<Admin />} />
+        {/* rota para tutoriais — crie src/pages/Tutoriais.jsx se quiser usar */}
+        <Route
+          path="/tutoriais"
+          element={
+            <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>
+              <h2>Página de Tutoriais</h2>
+              <p>Ainda não criada — adicione o arquivo <code>src/pages/Tutoriais.jsx</code> ou edite esta rota.</p>
+            </div>
+          }
+        />
+
+        {/* fallback simples */}
+        <Route
+          path="*"
+          element={
+            <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>
+              <h2>Página não encontrada</h2>
+              <p>
+                <Link to="/" style={{ color: '#7f1d1d' }}>
+                  Voltar ao início
+                </Link>
+              </p>
+            </div>
+          }
+        />
+      </Routes>
+    </main>
+  )
+}

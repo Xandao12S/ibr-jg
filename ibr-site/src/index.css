@@ -1,18 +1,79 @@
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
-
-body {
-  margin: 0;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+:root {
+  --brand: #6B1F1F;
+  --brand-dark: #4A1414;
+  --brand-light: #B84F4F;
+  --accent: #CBA86B;
+  --neutralbg: #F9F7F5;
+  --white: #ffffff;
+  --text: #334155;
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-in;
+* { box-sizing: border-box; }
+body { 
+  margin: 0; 
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--neutralbg);
+  color: var(--text);
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+.navbar {
+  background-color: var(--brand);
+  color: var(--white);
+  padding: 1rem 0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
+
+.nav-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+}
+
+.logo { font-size: 1.5rem; font-weight: bold; }
+.logo span { color: var(--accent); }
+
+.nav-links a {
+  color: var(--white);
+  text-decoration: none;
+  margin-left: 20px;
+  font-weight: 500;
+  transition: 0.3s;
+}
+
+.nav-links a:hover { color: var(--accent); }
+
+.main-content {
+  max-width: 1000px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.card {
+  background: var(--white);
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border: 1px solid #e2e8f0;
+  margin-bottom: 20px;
+}
+
+.btn-vinho {
+  background-color: var(--brand);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  text-decoration: none;
+  display: inline-block;
+  font-weight: bold;
+  transition: 0.3s;
+}
+
+.btn-vinho:hover { background-color: var(--brand-dark); }
+
+.table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+.table th, .table td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+.table th { color: var(--brand); font-weight: bold; }
