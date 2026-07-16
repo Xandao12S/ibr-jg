@@ -25,7 +25,7 @@ function ProtectedRoute({ children, requireAdmin = false }) {
   return children
 }
 
-const DEFAULT_LOGO = 'https://www.instagram.com/ibrjdguaruja.jpg' // URL padrão (substitua se quiser outra)
+const DEFAULT_LOGO = '/ibr.jpg' // pode manter public/ibr.jpg ou apontar outra URL pública
 
 function Header() {
   const navigate = useNavigate()
@@ -41,7 +41,7 @@ function Header() {
 
   useEffect(() => {
     function onStorage(e) {
-      if (!e || e.key === 'ibr_logo_url') {
+      if (!e || e.key === 'ibr_logo_url' || e.key === 'ibr_logo_url_sync') {
         try {
           setLogoUrl(localStorage.getItem('ibr_logo_url') || DEFAULT_LOGO)
         } catch {
@@ -54,38 +54,11 @@ function Header() {
   }, [])
 
   function handleLogoClick() {
-    // Se for admin: oferecer editar a URL (prompt) ou ir ao Admin
-    if (user && user.is_admin) {
-      const wantsEdit = window.confirm('Você quer alterar a URL da logo? OK = Alterar URL · Cancel = Ir para Painel Admin')
-      if (wantsEdit) {
-        const current = logoUrl === DEFAULT_LOGO ? '' : logoUrl
-        const newUrl = window.prompt('Cole a URL completa da imagem (https://www.instagram.com/ibrjdguaruja/.jpg):', current)
-        if (newUrl === null) {
-          // usuário cancelou prompt => nada
-          return
-        }
-        const trimmed = String(newUrl || '').trim()
-        try {
-          if (!trimmed) {
-            localStorage.removeItem('ibr_logo_url')
-            setLogoUrl(DEFAULT_LOGO)
-            alert('Logo resetada para o padrão.')
-          } else {
-            localStorage.setItem('ibr_logo_url', trimmed)
-            setLogoUrl(trimmed)
-            alert('Logo atualizada.')
-          }
-          // notifica outras abas
-          try { localStorage.setItem('ibr_logo_url_sync', String(Date.now())) } catch {}
-        } catch (err) {
-          console.error('Erro ao salvar logoUrl', err)
-          alert('Não foi possível salvar a URL localmente.')
-        }
-      } else {
-        navigate('/admin')
-      }
+    // Se for admin OU líder, leva ao painel admin
+    if (user && (user.is_admin || user.is_leader)) {
+      navigate('/admin')
     } else {
-      // não-admin: comportamento original (navegar pra home)
+      // visitantes e membros normais vão para a home (comportamento anterior)
       navigate('/')
     }
   }

@@ -200,11 +200,7 @@ export default function Restricoes() {
                     <div style={{ fontWeight: 700 }}>{r.responsavel}</div>
                     <div style={{ color: '#6b7280', fontSize: 12 }}>{new Date(r.data + 'T00:00:00').toLocaleDateString('pt-BR')} • {Array.isArray(r.periodo) ? r.periodo.join(', ') : r.periodo}</div>
                   </div>
-                  <div>
-                    {temPermissaoGeral ? (
-                      <button onClick={() => removerRestricao(r.id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 8px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>Remover</button>
-                    ) : null}
-                  </div>
+                  {/* botão de remover foi removido conforme solicitado */}
                 </div>
               ))
             )}
