@@ -87,13 +87,32 @@ export default function Escalas() {
                   {['Manhã', 'Noite'].map(periodo => (
                     <div key={periodo}>
                       <div style={turnoTitle}>{periodo}</div>
+
                       {dia.turnos[periodo] && Object.entries(dia.turnos[periodo]).length > 0 ? (
-                        Object.entries(dia.turnos[periodo]).map(([funcao, nome]) => (
-                          <div key={funcao} style={itemStyle}>
-                            <span style={{ color: '#555' }}>{funcao}</span>
-                            <span style={{ fontWeight: '600' }}>{nome}</span>
-                          </div>
-                        ))
+                        // FILTER: aqui retiramos entradas cujo nome esteja vazio ou seja "vago"
+                        Object.entries(dia.turnos[periodo])
+                          .map(([funcao, nome]) => {
+                            // normaliza espaços e quebras e verifica "vago" (case-insensitive)
+                            const cleaned = String(nome || '').replace(/\u00A0/g, ' ').trim()
+                            return { funcao, nome: cleaned, isVago: cleaned === '' || cleaned.toLowerCase() === 'vago' }
+                          })
+                          .filter(item => !item.isVago) // não renderizar linhas vazias/vago
+                          .length > 0 ? (
+                            Object.entries(dia.turnos[periodo])
+                              .map(([funcao, nome]) => {
+                                const cleaned = String(nome || '').replace(/\u00A0/g, ' ').trim()
+                                const isVago = cleaned === '' || cleaned.toLowerCase() === 'vago'
+                                if (isVago) return null
+                                return (
+                                  <div key={funcao} style={itemStyle}>
+                                    <span style={{ color: '#555' }}>{funcao}</span>
+                                    <span style={{ fontWeight: '600' }}>{cleaned}</span>
+                                  </div>
+                                )
+                              })
+                          ) : (
+                            <div style={{ color: '#999', fontSize: '12px' }}>Sem escala</div>
+                          )
                       ) : (
                         <div style={{ color: '#999', fontSize: '12px' }}>Sem escala</div>
                       )}

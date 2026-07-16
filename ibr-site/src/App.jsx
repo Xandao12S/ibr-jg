@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link, Navigate, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import Home from './pages/Home.jsx'
-import Restricoes from './pages/Restricoes.jsx' // antes: Escalas.jsx
+import Restricoes from './pages/Restricoes.jsx'
 import Login from './pages/Login.jsx'
 import Admin from './pages/Admin.jsx'
 import EscalaDoMes from './pages/EscalaDoMes.jsx'
@@ -25,7 +25,7 @@ function ProtectedRoute({ children, requireAdmin = false }) {
   return children
 }
 
-const DEFAULT_LOGO = '/ibr.jpg' // pode manter public/ibr.jpg ou apontar outra URL pública
+const DEFAULT_LOGO = '/ibr.jpg'
 
 function Header() {
   const navigate = useNavigate()
@@ -54,11 +54,9 @@ function Header() {
   }, [])
 
   function handleLogoClick() {
-    // Se for admin OU líder, leva ao painel admin
     if (user && (user.is_admin || user.is_leader)) {
       navigate('/admin')
     } else {
-      // visitantes e membros normais vão para a home (comportamento anterior)
       navigate('/')
     }
   }
@@ -71,55 +69,53 @@ function Header() {
   }
 
   return (
-    <>
-      <header style={{ background: '#fff', borderBottom: '1px solid #eee', padding: '12px 18px', position: 'sticky', top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div onClick={handleLogoClick} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}>
-            {/* Carrega a logo pela URL; fallback para DEFAULT_LOGO em caso de erro */}
-            <img
-              src={logoUrl}
-              alt="Logo IBR"
-              style={{ height: 40, width: 'auto', borderRadius: 4, objectFit: 'cover' }}
-              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = DEFAULT_LOGO }}
-            />
-            <div>
-              <div style={{ fontWeight: 700, color: '#7f1d1d' }}>IBR</div>
-              <div style={{ fontSize: 12, color: '#6b7280' }}>Jardim Guarujá</div>
+    <header className="app-header" style={{ position: 'sticky', top: 0, zIndex: 60, background: '#fff', borderBottom: '1px solid #eee' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16, padding: '10px 16px', boxSizing: 'border-box' }}>
+        <div onClick={handleLogoClick} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none', minWidth: 0 }}>
+          <img
+            src={logoUrl}
+            alt="Logo IBR"
+            style={{ height: 40, width: 'auto', borderRadius: 4, objectFit: 'cover', flexShrink: 0 }}
+            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = DEFAULT_LOGO }}
+          />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 700, color: '#7f1d1d', fontSize: 16, lineHeight: 1 }}>{/* título truncável */}
+              <span style={{ display: 'inline-block', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>IBR</span>
             </div>
-          </div>
-
-          {/* centraliza os botões */}
-          <nav style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'center' }}>
-            {/* link visível "Escalas" agora aponta para /restricoes */}
-            <Link to="/restricoes" style={headerBtnStyle}>Restrições</Link>
-            <Link to="/informativos" style={headerBtnStyle}>Informativos</Link>
-          </nav>
-
-          <div style={{ marginLeft: 'auto' }}>
-            {user ? (
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <div style={{
-                  textAlign: 'right', padding: '6px 12px', borderRadius: '8px',
-                  border: user.is_leader ? '2px solid #ffd700' : 'none',
-                  boxShadow: user.is_leader ? '0 0 10px rgba(255, 215, 0, 0.35)' : 'none',
-                  background: user.is_leader ? 'linear-gradient(to right, #fff, #fffaf0)' : 'transparent'
-                }}>
-                  <div style={{ fontWeight: 700, color: user.is_leader ? '#b8860b' : 'inherit', fontSize: 14 }}>
-                    {user.nome} {user.is_leader && '⭐'}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>
-                    {Array.isArray(user.funcao) ? user.funcao.join(', ') : user.funcao}
-                  </div>
-                </div>
-                <button onClick={logout} style={{ padding: '6px 10px', borderRadius: 8, fontSize: 13 }}>Sair</button>
-              </div>
-            ) : (
-              <Link to="/login" style={{ fontWeight: 600, color: '#7f1d1d', textDecoration: 'none' }}>Entrar</Link>
-            )}
+            <div style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Jardim Guarujá</div>
           </div>
         </div>
-      </header>
-    </>
+
+        <nav style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Link to="/restricoes" style={headerBtnStyle}>Restrições</Link>
+          <Link to="/informativos" style={headerBtnStyle}>Informativos</Link>
+        </nav>
+
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+          {user ? (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div style={{
+                textAlign: 'right', padding: '6px 12px', borderRadius: '8px',
+                border: user.is_leader ? '2px solid #ffd700' : 'none',
+                boxShadow: user.is_leader ? '0 0 10px rgba(255, 215, 0, 0.35)' : 'none',
+                background: user.is_leader ? 'linear-gradient(to right, #fff, #fffaf0)' : 'transparent',
+                minWidth: 0
+              }}>
+                <div style={{ fontWeight: 700, color: user.is_leader ? '#b8860b' : 'inherit', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {user.nome} {user.is_leader && '⭐'}
+                </div>
+                <div style={{ fontSize: 11, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {Array.isArray(user.funcao) ? user.funcao.join(', ') : user.funcao}
+                </div>
+              </div>
+              <button onClick={logout} style={{ padding: '6px 10px', borderRadius: 8, fontSize: 13 }}>Sair</button>
+            </div>
+          ) : (
+            <Link to="/login" style={{ fontWeight: 600, color: '#7f1d1d', textDecoration: 'none' }}>Entrar</Link>
+          )}
+        </div>
+      </div>
+    </header>
   )
 }
 
@@ -177,12 +173,11 @@ export default function App() {
   return (
     <div style={{ paddingBottom: 120 }}>
       <Header />
-      <main style={{ maxWidth: 1100, margin: '20px auto', padding: '0 16px', paddingBottom: '140px' }}>
+      <main className="page-root" style={{ minHeight: '100vh' }}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
 
-          {/* rota atualizada para /restricoes */}
           <Route path="/restricoes" element={<ProtectedRoute><Restricoes /></ProtectedRoute>} />
 
           <Route path="/escala-do-mes" element={<ProtectedRoute><EscalaDoMes /></ProtectedRoute>} />

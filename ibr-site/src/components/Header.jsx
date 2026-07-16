@@ -1,42 +1,50 @@
 // src/components/Header.jsx
-import React, { useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import './Header.css';
 
-export default function Header() {
-  const headerRef = useRef(null);
-
-  useEffect(() => {
-    function setHeaderHeight() {
-      if (!headerRef.current) return;
-      const h = headerRef.current.offsetHeight;
-      document.documentElement.style.setProperty('--site-header-height', `${h}px`);
-    }
-    setHeaderHeight();
-    window.addEventListener('resize', setHeaderHeight);
-    window.addEventListener('orientationchange', setHeaderHeight);
-    const t = setTimeout(setHeaderHeight, 200);
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener('resize', setHeaderHeight);
-      window.removeEventListener('orientationchange', setHeaderHeight);
-    };
-  }, []);
+export default function Header({ siteName = 'IBR Jardim Guarujá' }) {
+  const [open, setOpen] = useState(false);
 
   return (
-    <header className="site-header" ref={headerRef}>
+    <header className="app-header" role="banner">
       <div className="header-inner">
-        <div className="brand">
-          <img src="/ibr.jpg" alt="IBR" className="header-logo" />
-          <div className="brand-text">
+        <div className="logo">
+          <img src="/ibr.jpg" alt="IBR" />
+          <div className="brand">
             <div className="brand-title">IBR</div>
             <div className="brand-sub">Jardim Guarujá</div>
           </div>
         </div>
 
-        {/* Mantém apenas um link superior: Informativos */}
-        <nav className="navbar" aria-label="Navegação principal">
-          <a className="nav-link" href="/informativos">Informativos</a>
+        <nav className={`nav-buttons ${open ? 'is-open' : ''}`} aria-label="Navegação principal">
+          <a href="/" className="nav-link">Início</a>
+          <a href="/escalas" className="nav-link">Escalas</a>
+          <a href="/informativos" className="nav-link">Informativos</a>
+          <a href="/album" className="nav-link">Álbum</a>
         </nav>
+
+        <div className="header-right">
+          <div className="user">Equipe</div>
+
+          <button
+            className={`hamburger ${open ? 'is-active' : ''}`}
+            aria-label={open ? 'Fechar menu' : 'Abrir menu'}
+            aria-expanded={open}
+            onClick={() => setOpen(s => !s)}
+          >
+            <span className="hamburger-box">
+              <span className="hamburger-inner" />
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* menu móvel (aparece em telas pequenas) */}
+      <div className={`mobile-menu ${open ? 'visible' : ''}`} role="menu" aria-hidden={!open}>
+        <a className="mobile-link" href="/" onClick={() => setOpen(false)}>Início</a>
+        <a className="mobile-link" href="/escalas" onClick={() => setOpen(false)}>Escalas</a>
+        <a className="mobile-link" href="/informativos" onClick={() => setOpen(false)}>Informativos</a>
+        <a className="mobile-link" href="/album" onClick={() => setOpen(false)}>Álbum</a>
       </div>
     </header>
   );
