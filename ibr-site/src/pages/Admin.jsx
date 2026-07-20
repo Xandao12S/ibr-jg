@@ -97,7 +97,6 @@ export default function Admin() {
   const [escalaMensal, setEscalaMensal] = useState(null)
   const [album, setAlbum] = useState([])
 
-  // ---- TUTORIAIS state ----
   const [tutoriais, setTutoriais] = useState([])
   const [showTutoriaisPanel, setShowTutoriaisPanel] = useState(false)
   const [tutorialTitulo, setTutorialTitulo] = useState('')
@@ -145,7 +144,6 @@ export default function Admin() {
   const addBtnStyle = { background: '#6b1515', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer' }
   const secondaryBtnStyle = { background: '#7b1d1d', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer' }
 
-  // ---- Supabase CRUD helpers ----
   const fetchMembers = async () => {
     try {
       const { data, error } = await supabase.from('membros').select('id, nome, funcao, created_at').order('created_at', { ascending: false })
@@ -230,7 +228,6 @@ export default function Admin() {
     }
   }
 
-  // ---- TUTORIAIS fetch ----
   const fetchTutoriais = async () => {
     try {
       const { data, error } = await supabase
@@ -252,7 +249,6 @@ export default function Admin() {
     await Promise.all([fetchMembers(), fetchInformativos(), fetchEscalaMensal(), fetchRestricoes(), fetchAlbum(), fetchTutoriais()])
   }, [])
 
-  // ---- MEMBERS CRUD ----
   const addMember = async (payload) => {
     try {
       const { data, error } = await supabase.from('membros').insert([payload]).select().single()
@@ -294,7 +290,6 @@ export default function Admin() {
     }
   }
 
-  // ---- INFORMATIVOS CRUD ----
   const addInformativo = async (payload) => {
     try {
       const { data, error } = await supabase.from('informativos').insert([payload]).select().single()
@@ -344,7 +339,6 @@ export default function Admin() {
     }
   }
 
-  // ---- TUTORIAIS CRUD ----
   const uploadPdfTutorial = async (file) => {
     if (!file) return null
     const ext = file.name.split('.').pop() || 'pdf'
@@ -427,7 +421,6 @@ export default function Admin() {
     } catch (error) { alert(`Erro ao atualizar tutorial: ${error.message}`) }
   }
 
-  // ---- RESTRIÇÕES CRUD ----
   const addRestricao = async (payload) => {
     try {
       const { data, error } = await supabase.from('restricoes').insert([payload]).select().single()
@@ -455,7 +448,6 @@ export default function Admin() {
     }
   }
 
-  // ---- ESCALA MENSAL ----
   const publishEscalaMensal = async (obj) => {
     try {
       const payload = { month_label: obj.monthLabel, data: obj.data }
@@ -514,7 +506,6 @@ export default function Admin() {
     }
   }
 
-  // ---- Upload imagem informativo ----
   const uploadImagemInformativo = async (file) => {
     if (!file) return null
     const extensaoOriginal = file.name.split('.').pop() || 'jpg'
@@ -529,7 +520,6 @@ export default function Admin() {
     return publicUrlData?.publicUrl || null
   }
 
-  // ---- UI helpers ----
   const toggleFuncao = (f) => setFuncoesSelecionadas(prev => (prev.includes(f) ? prev.filter(i => i !== f) : [...prev, f]))
 
   const handleAddMemberClick = async () => {
@@ -555,16 +545,9 @@ export default function Admin() {
   const handleFileChange = (e) => {
     const file = e.target.files && e.target.files[0]
     if (!file) return
-    if (!file.type.startsWith('image/')) {
-      alert('Por favor, selecione somente uma imagem.')
-      e.target.value = ''
-      return
-    }
+    if (!file.type.startsWith('image/')) { alert('Por favor, selecione somente uma imagem.'); e.target.value = ''; return }
     const reader = new FileReader()
-    reader.onload = () => {
-      setInformativoImagem(reader.result)
-      setInformativoImagemFile(file)
-    }
+    reader.onload = () => { setInformativoImagem(reader.result); setInformativoImagemFile(file) }
     reader.readAsDataURL(file)
     e.target.value = ''
   }
@@ -572,28 +555,11 @@ export default function Admin() {
   const handleEditInformativoFileChange = (e) => {
     const file = e.target.files && e.target.files[0]
     if (!file) return
-    if (!file.type.startsWith('image/')) {
-      alert('Por favor, selecione somente uma imagem.')
-      e.target.value = ''
-      return
-    }
+    if (!file.type.startsWith('image/')) { alert('Por favor, selecione somente uma imagem.'); e.target.value = ''; return }
     const reader = new FileReader()
-    reader.onload = () => {
-      setEditingInformativo(prev => ({ ...prev, imagemDataUrl: reader.result }))
-      setEditingInformativoImagemFile(file)
-    }
+    reader.onload = () => { setEditingInformativo(prev => ({ ...prev, imagemDataUrl: reader.result })); setEditingInformativoImagemFile(file) }
     reader.readAsDataURL(file)
     e.target.value = ''
-  }
-
-  const dataURLtoBlob = (dataurl) => {
-    const arr = dataurl.split(',')
-    const mime = arr[0].match(/:(.*?);/)[1]
-    const bstr = atob(arr[1])
-    let n = bstr.length
-    const u8arr = new Uint8Array(n)
-    while (n--) u8arr[n] = bstr.charCodeAt(n)
-    return new Blob([u8arr], { type: mime })
   }
 
   const handleAddInformativo = async () => {
@@ -623,17 +589,12 @@ export default function Admin() {
     try {
       let imagem_url = editingInformativo.imagemDataUrl || null
       if (editingInformativoImagemFile) imagem_url = await uploadImagemInformativo(editingInformativoImagemFile)
-      await updateInformativo(editingInformativo.id, {
-        titulo,
-        conteudo: editingInformativo.conteudo?.trim() || '',
-        imagem_url
-      })
+      await updateInformativo(editingInformativo.id, { titulo, conteudo: editingInformativo.conteudo?.trim() || '', imagem_url })
       setEditingInformativo(null)
       setEditingInformativoImagemFile(null)
     } catch (error) { alert(`Não foi possível atualizar a imagem: ${error.message}`) }
   }
 
-  // ---- Escala helpers ----
   function gerarEscalaAutomatica() {
     const hoje = new Date()
     const domingos = []
@@ -688,7 +649,6 @@ export default function Admin() {
     setSugestaoEditada(null)
   }
 
-  // ---- Compartilhar ----
   const handleShareBgChange = (e) => {
     const file = e.target.files && e.target.files[0]
     if (!file) return
@@ -710,7 +670,6 @@ export default function Admin() {
     } catch (err) { alert('Erro ao gerar imagem: ' + err.message) }
   }
 
-  // ---- Album handlers ----
   const handleAlbumFileInput = async (e) => {
     const files = Array.from(e.target.files || [])
     if (files.length === 0) return
@@ -718,7 +677,6 @@ export default function Admin() {
     e.target.value = ''
   }
 
-  // ---- Lifecycle ----
   useEffect(() => { setChecked(true) }, [])
   useEffect(() => { fetchAll() }, [fetchAll])
   useEffect(() => {
@@ -794,20 +752,13 @@ export default function Admin() {
                 </div>
                 <button onClick={handleAddMemberClick} style={{ ...addBtnStyle, padding: '10px 18px' }}>Adicionar</button>
               </div>
-
               <div style={{ borderTop: '1px solid #f0f0f0', borderRadius: 6, overflow: 'hidden' }}>
                 {membros.length === 0
                   ? <div style={{ padding: 16, color: '#9ca3af' }}>Nenhum membro cadastrado.</div>
                   : membros.map(m => (
                     <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 8px', borderBottom: '1px solid #f0f0f0', gap: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-                        <div style={{
-                          width: 40, height: 40, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                          borderRadius: 8,
-                          background: (Array.isArray(m.funcao) ? m.funcao.includes('Líder') : m.funcao === 'Líder') ? '#ffecb5' : 'transparent',
-                          color: (Array.isArray(m.funcao) ? m.funcao.includes('Líder') : m.funcao === 'Líder') ? '#b8860b' : '#374151',
-                          fontWeight: 800
-                        }}>
+                        <div style={{ width: 40, height: 40, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, background: (Array.isArray(m.funcao) ? m.funcao.includes('Líder') : m.funcao === 'Líder') ? '#ffecb5' : 'transparent', color: (Array.isArray(m.funcao) ? m.funcao.includes('Líder') : m.funcao === 'Líder') ? '#b8860b' : '#374151', fontWeight: 800 }}>
                           {String(m.nome || '').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase()}
                         </div>
                         <div style={{ minWidth: 0 }}>
@@ -823,7 +774,6 @@ export default function Admin() {
                   ))
                 }
               </div>
-
               {editingMember && (
                 <div style={{ marginTop: 12, padding: 12, border: '1px solid #e6e6e6', borderRadius: 8 }}>
                   <h4 style={{ marginTop: 0 }}>Editar Membro</h4>
@@ -891,7 +841,6 @@ export default function Admin() {
                   </div>
                 )}
               </div>
-
               <div style={{ marginTop: 12 }}>
                 <h3 style={{ marginBottom: 8 }}>Informativos Publicados</h3>
                 {informativos.length === 0 ? (
@@ -902,23 +851,12 @@ export default function Admin() {
                       <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', border: '1px solid #e6e6e6', borderRadius: 8, background: '#fff', gap: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
                           <div style={{ width: 56, height: 44, borderRadius: 8, overflow: 'hidden', background: '#f3f3f3', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            {item.imagemDataUrl
-                              ? <img src={item.imagemDataUrl} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                              : <span style={{ color: '#999', fontSize: 12 }}>sem foto</span>}
+                            {item.imagemDataUrl ? <img src={item.imagemDataUrl} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#999', fontSize: 12 }}>sem foto</span>}
                           </div>
                           <div style={{ fontWeight: 700, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.titulo}</div>
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                          <button
-                            onClick={() => handleFixarInformativo(item.id, item.fixado)}
-                            style={{
-                              padding: '8px 12px', borderRadius: 8,
-                              border: item.fixado ? '1px solid #93c5fd' : '1px solid #d1d5db',
-                              background: item.fixado ? '#dbeafe' : '#f9fafb',
-                              color: item.fixado ? '#1e40af' : '#374151',
-                              cursor: 'pointer', whiteSpace: 'nowrap'
-                            }}
-                          >
+                          <button onClick={() => handleFixarInformativo(item.id, item.fixado)} style={{ padding: '8px 12px', borderRadius: 8, border: item.fixado ? '1px solid #93c5fd' : '1px solid #d1d5db', background: item.fixado ? '#dbeafe' : '#f9fafb', color: item.fixado ? '#1e40af' : '#374151', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                             {item.fixado ? 'Desfixar' : 'Fixar'}
                           </button>
                           <button onClick={() => handleStartEditInformativo(item)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer' }}>Editar</button>
@@ -928,7 +866,6 @@ export default function Admin() {
                     ))}
                   </div>
                 )}
-
                 {editingInformativo && (
                   <div style={{ marginTop: 16, padding: 14, border: '1px solid #e6e6e6', borderRadius: 8, background: '#fafafa' }}>
                     <h4 style={{ marginTop: 0 }}>Editar Informativo</h4>
@@ -957,43 +894,22 @@ export default function Admin() {
             <div style={{ marginBottom: 16 }}>
               <h3 style={{ marginTop: 0 }}>Adicionar Tutorial</h3>
               <input ref={tutorialPdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }}
-                onChange={e => {
-                  const file = e.target.files && e.target.files[0]
-                  if (!file) return
-                  setTutorialPdfFile(file)
-                  setTutorialPdfNome(file.name)
-                  e.target.value = ''
-                }}
+                onChange={e => { const file = e.target.files && e.target.files[0]; if (!file) return; setTutorialPdfFile(file); setTutorialPdfNome(file.name); e.target.value = '' }}
               />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
-                <input
-                  placeholder="Título do tutorial"
-                  value={tutorialTitulo}
-                  onChange={e => setTutorialTitulo(e.target.value)}
-                  style={{ padding: 10, borderRadius: 6, border: '1px solid #e6e6e6' }}
-                />
+                <input placeholder="Título do tutorial" value={tutorialTitulo} onChange={e => setTutorialTitulo(e.target.value)} style={{ padding: 10, borderRadius: 6, border: '1px solid #e6e6e6' }} />
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <button
-                    onClick={() => tutorialPdfInputRef.current && tutorialPdfInputRef.current.click()}
-                    style={{ background: '#f3f4f6', border: '1px solid #e6e6e6', padding: '8px 14px', borderRadius: 8, cursor: 'pointer' }}
-                  >
+                  <button onClick={() => tutorialPdfInputRef.current && tutorialPdfInputRef.current.click()} style={{ background: '#f3f4f6', border: '1px solid #e6e6e6', padding: '8px 14px', borderRadius: 8, cursor: 'pointer' }}>
                     📄 {tutorialPdfNome ? 'Trocar PDF' : 'Adicionar PDF'}
                   </button>
-                  {tutorialPdfNome && (
-                    <span style={{ fontSize: 13, color: '#374151', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '4px 10px', borderRadius: 6 }}>
-                      {tutorialPdfNome}
-                    </span>
-                  )}
-                  {tutorialPdfNome && (
-                    <button onClick={() => { setTutorialPdfFile(null); setTutorialPdfNome('') }} style={{ background: '#fee2e2', border: '1px solid #fca5a5', padding: '6px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>Remover PDF</button>
-                  )}
+                  {tutorialPdfNome && <span style={{ fontSize: 13, color: '#374151', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '4px 10px', borderRadius: 6 }}>{tutorialPdfNome}</span>}
+                  {tutorialPdfNome && <button onClick={() => { setTutorialPdfFile(null); setTutorialPdfNome('') }} style={{ background: '#fee2e2', border: '1px solid #fca5a5', padding: '6px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>Remover PDF</button>}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={handleAddTutorial} style={{ ...addBtnStyle, padding: '10px 14px' }}>Adicionar</button>
                   <button onClick={() => { setTutorialTitulo(''); setTutorialPdfFile(null); setTutorialPdfNome(''); setShowTutoriaisPanel(false) }} style={{ background: '#e5e7eb', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer' }}>Cancelar</button>
                 </div>
               </div>
-
               <div style={{ marginTop: 12 }}>
                 <h3 style={{ marginBottom: 8 }}>Tutoriais Publicados</h3>
                 {tutoriais.length === 0 ? (
@@ -1003,70 +919,32 @@ export default function Admin() {
                     {tutoriais.map(item => (
                       <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', border: '1px solid #e6e6e6', borderRadius: 8, background: '#fff', gap: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-                          <div style={{ width: 40, height: 40, borderRadius: 8, background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 20 }}>
-                            📄
-                          </div>
+                          <div style={{ width: 40, height: 40, borderRadius: 8, background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 20 }}>📄</div>
                           <div style={{ minWidth: 0 }}>
                             <div style={{ fontWeight: 700, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.titulo}</div>
-                            {item.pdf_url
-                              ? <a href={item.pdf_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#6b1515' }}>Ver PDF</a>
-                              : <span style={{ fontSize: 12, color: '#9ca3af' }}>Sem PDF</span>
-                            }
+                            {item.pdf_url ? <a href={item.pdf_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#6b1515' }}>Ver PDF</a> : <span style={{ fontSize: 12, color: '#9ca3af' }}>Sem PDF</span>}
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                          <button
-                            onClick={() => { setEditingTutorial({ ...item }); setEditingTutorialPdfFile(null) }}
-                            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer' }}
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => deleteTutorial(item.id)}
-                            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fee2e2', color: '#991b1b', cursor: 'pointer' }}
-                          >
-                            Apagar
-                          </button>
+                          <button onClick={() => { setEditingTutorial({ ...item }); setEditingTutorialPdfFile(null) }} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer' }}>Editar</button>
+                          <button onClick={() => deleteTutorial(item.id)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fee2e2', color: '#991b1b', cursor: 'pointer' }}>Apagar</button>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
-
                 {editingTutorial && (
                   <div style={{ marginTop: 16, padding: 14, border: '1px solid #e6e6e6', borderRadius: 8, background: '#fafafa' }}>
                     <h4 style={{ marginTop: 0 }}>Editar Tutorial</h4>
                     <input ref={editTutorialPdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }}
-                      onChange={e => {
-                        const file = e.target.files && e.target.files[0]
-                        if (!file) return
-                        setEditingTutorialPdfFile(file)
-                        setEditingTutorial(prev => ({ ...prev, pdf_nome: file.name }))
-                        e.target.value = ''
-                      }}
+                      onChange={e => { const file = e.target.files && e.target.files[0]; if (!file) return; setEditingTutorialPdfFile(file); setEditingTutorial(prev => ({ ...prev, pdf_nome: file.name })); e.target.value = '' }}
                     />
                     <div style={{ display: 'grid', gap: 10 }}>
-                      <input
-                        value={editingTutorial.titulo}
-                        onChange={e => setEditingTutorial(prev => ({ ...prev, titulo: e.target.value }))}
-                        placeholder="Título"
-                        style={{ padding: 10, borderRadius: 6, border: '1px solid #e6e6e6' }}
-                      />
+                      <input value={editingTutorial.titulo} onChange={e => setEditingTutorial(prev => ({ ...prev, titulo: e.target.value }))} placeholder="Título" style={{ padding: 10, borderRadius: 6, border: '1px solid #e6e6e6' }} />
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <button
-                          onClick={() => editTutorialPdfInputRef.current && editTutorialPdfInputRef.current.click()}
-                          style={{ background: '#f3f4f6', border: '1px solid #e6e6e6', padding: '8px 14px', borderRadius: 8, cursor: 'pointer' }}
-                        >
-                          📄 Trocar PDF
-                        </button>
-                        {editingTutorialPdfFile && (
-                          <span style={{ fontSize: 13, color: '#374151', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '4px 10px', borderRadius: 6 }}>
-                            {editingTutorialPdfFile.name}
-                          </span>
-                        )}
-                        {!editingTutorialPdfFile && editingTutorial.pdf_url && (
-                          <a href={editingTutorial.pdf_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: '#6b1515' }}>PDF atual</a>
-                        )}
+                        <button onClick={() => editTutorialPdfInputRef.current && editTutorialPdfInputRef.current.click()} style={{ background: '#f3f4f6', border: '1px solid #e6e6e6', padding: '8px 14px', borderRadius: 8, cursor: 'pointer' }}>📄 Trocar PDF</button>
+                        {editingTutorialPdfFile && <span style={{ fontSize: 13, color: '#374151', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '4px 10px', borderRadius: 6 }}>{editingTutorialPdfFile.name}</span>}
+                        {!editingTutorialPdfFile && editingTutorial.pdf_url && <a href={editingTutorial.pdf_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: '#6b1515' }}>PDF atual</a>}
                       </div>
                       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                         <button onClick={() => { setEditingTutorial(null); setEditingTutorialPdfFile(null) }} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff' }}>Cancelar</button>
@@ -1079,31 +957,60 @@ export default function Admin() {
             </div>
           )}
 
-          {/* ---- Escala publicada ---- */}
+          {/* ---- ✅ ESCALA PUBLICADA — novo estilo ---- */}
           {viewMode === 'escala' && escalaMensal && (
-            <div style={{ marginBottom: 14, padding: 12, background: '#fff', borderRadius: 6, border: '1px solid #e6e6e6' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                <h3 style={{ margin: 0 }}>Escala do Mês — {escalaMensal.monthLabel}</h3>
-                <button onClick={() => deleteEscalaMensal(escalaMensal.id)} style={{ background: '#fee2e2', border: '1px solid #fca5a5', padding: '8px 12px', borderRadius: 8 }}>Remover Escala do Mês</button>
+            <div style={{ marginBottom: 14 }}>
+              {/* Cabeçalho */}
+              <div style={{ textAlign: 'center', marginBottom: 20, padding: '16px 0 8px' }}>
+                <div style={{ fontSize: 22, fontWeight: 900, color: '#1a2a5e', letterSpacing: 0.5 }}>
+                  📢 Escala — {escalaMensal.monthLabel.replace(/^\w/, c => c.toUpperCase())}
+                </div>
               </div>
-              <div style={{ marginTop: 12 }}>
+
+              {/* Botão remover */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+                <button onClick={() => deleteEscalaMensal(escalaMensal.id)} style={{ background: '#fee2e2', border: '1px solid #fca5a5', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', color: '#991b1b', fontWeight: 600 }}>
+                  Remover Escala do Mês
+                </button>
+              </div>
+
+              {/* Cards dos dias */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {Array.isArray(escalaMensal.data) && escalaMensal.data.map(dia => (
-                  <div key={dia.data} style={{ padding: 12, background: '#fafafa', borderRadius: 6, border: '1px solid #f3f3f3', marginBottom: 8 }}>
-                    <strong style={{ display: 'block', marginBottom: 8 }}>
-                      {new Date(dia.data + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
-                    </strong>
-                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                  <div key={dia.data} style={{ background: '#fff', borderRadius: 14, padding: '16px 18px', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', border: '1px solid #ece9e0' }}>
+                    {/* Data do dia */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, paddingBottom: 10, borderBottom: '2px solid #e8a020' }}>
+                      <span style={{ fontSize: 18 }}>📅</span>
+                      <span style={{ fontWeight: 800, fontSize: 15, color: '#1a2a5e', textTransform: 'capitalize' }}>
+                        {new Date(dia.data + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+                      </span>
+                    </div>
+
+                    {/* Manhã e Noite lado a lado */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                       {periodos.map(p => (
-                        <div key={p} style={{ flex: 1, minWidth: 120 }}>
-                          <div style={{ fontWeight: 700, color: '#7f1d1d', marginBottom: 6 }}>{p}</div>
+                        <div key={p}>
+                          <div style={{ fontWeight: 800, fontSize: 12, color: '#1a2a5e', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, borderBottom: '1px solid #e8e8e8', paddingBottom: 4 }}>
+                            {p}
+                          </div>
                           {dia.turnos && dia.turnos[p]
                             ? Object.entries(dia.turnos[p]).map(([f, n]) => (
-                              <div key={f} style={{ fontSize: 13, padding: '8px', marginBottom: 6 }}>
-                                <span style={{ fontWeight: 600 }}>{f}:</span>
-                                <span style={{ marginLeft: 8, fontWeight: 700 }}>{n}</span>
+                              <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', borderBottom: '1px solid #f5f5f5', fontSize: 13 }}>
+                                <span style={{ fontWeight: 700, color: '#374151', minWidth: 90 }}>{f}:</span>
+                                <span style={{ color: '#111', fontWeight: 500 }}>{n}</span>
+                                {/* ✅ BOTÃO SÁBADO */}
+                                {(f === 'Som' || f === 'Holyrics') && n && n !== 'Vago' && p === 'Noite' && (
+                                  <button
+                                    onClick={() => alert('Você deverá ir ao ensaio no sábado as 09:00, por favor.')}
+                                    style={{ marginLeft: 4, padding: '2px 8px', borderRadius: 6, background: '#7f1d1d', color: '#fff', border: 'none', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}
+                                  >
+                                    Sábado
+                                  </button>
+                                )}
                               </div>
                             ))
-                            : <div style={{ color: '#9ca3af' }}>Sem dados</div>}
+                            : <div style={{ color: '#9ca3af', fontSize: 13 }}>Sem dados</div>
+                          }
                         </div>
                       ))}
                     </div>
@@ -1157,6 +1064,15 @@ export default function Admin() {
                                   {candidatos.map(mem => <option key={mem.id} value={mem.nome}>{mem.nome}</option>)}
                                   {!includesCurrent && n !== 'Vago' && <option value={n}>{n} (atual)</option>}
                                 </select>
+                                {/* ✅ BOTÃO SÁBADO - sugestão */}
+                                {(f === 'Som' || f === 'Holyrics') && n && n !== 'Vago' && p === 'Noite' && (
+                                  <button
+                                    onClick={() => alert('Você deverá ir ao ensaio no sábado as 09:00, por favor.')}
+                                    style={{ padding: '4px 10px', borderRadius: 6, background: '#7f1d1d', color: '#fff', border: 'none', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}
+                                  >
+                                    Sábado
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => {
                                     const novoDia = { ...dia, turnos: { ...dia.turnos, [p]: { ...dia.turnos[p] } } }
@@ -1211,12 +1127,8 @@ export default function Admin() {
               {shareBgImage ? 'Trocar imagem de fundo' : 'Escolher imagem de fundo'}
             </button>
             <div ref={shareCardRef} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', backgroundColor: shareBgImage ? 'transparent' : '#f5f0e8', padding: '20px 18px', minHeight: 300 }}>
-              {shareBgImage && (
-                <img src={shareBgImage} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10, zIndex: 0 }} />
-              )}
-              {shareBgImage && (
-                <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.82)', borderRadius: 10, zIndex: 1 }} />
-              )}
+              {shareBgImage && <img src={shareBgImage} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10, zIndex: 0 }} />}
+              {shareBgImage && <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.82)', borderRadius: 10, zIndex: 1 }} />}
               <div style={{ position: 'relative', zIndex: 2 }}>
                 <div style={{ textAlign: 'center', marginBottom: 16 }}>
                   <span style={{ fontSize: 20, fontWeight: 900, color: '#1a2a5e' }}>
