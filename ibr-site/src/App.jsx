@@ -9,6 +9,7 @@ import EscalaDoMes from './pages/EscalaDoMes.jsx'
 import Tutoriais from './pages/Tutoriais.jsx'
 import Informativos from './pages/Informativos.jsx'
 import './index.css'
+import Registro from './pages/Registro';
 
 function getCurrentUser() {
   try {
@@ -21,7 +22,7 @@ function ProtectedRoute({ children, requireAdmin = false }) {
   const location = useLocation()
   const user = getCurrentUser()
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />
-  if (requireAdmin && !user.is_admin) return <Navigate to="/" replace />
+  if (requireAdmin && user.role !== 'admin') return <Navigate to="/" replace />
   return children
 }
 
@@ -54,7 +55,8 @@ function Header() {
   }, [])
 
   function handleLogoClick() {
-    if (user && (user.is_admin || user.is_leader)) {
+    // DEPOIS
+if (user && (user.role === 'admin')) {
       navigate('/admin')
     } else {
       navigate('/')
@@ -96,13 +98,13 @@ function Header() {
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <div style={{
                 textAlign: 'right', padding: '6px 12px', borderRadius: '8px',
-                border: user.is_leader ? '2px solid #ffd700' : 'none',
-                boxShadow: user.is_leader ? '0 0 10px rgba(255, 215, 0, 0.35)' : 'none',
-                background: user.is_leader ? 'linear-gradient(to right, #fff, #fffaf0)' : 'transparent',
+                border: user.role === 'lider' ? '2px solid #ffd700' : 'none',
+                boxShadow: user.role === 'lider' ? '0 0 10px rgba(255, 215, 0, 0.35)' : 'none',
+                background: user.role === 'lider' ? 'linear-gradient(to right, #fff, #fffaf0)' : 'transparent',
                 minWidth: 0
               }}>
-                <div style={{ fontWeight: 700, color: user.is_leader ? '#b8860b' : 'inherit', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {user.nome} {user.is_leader && '⭐'}
+                <div style={{ fontWeight: 700, color: user.role === 'lider' ? '#b8860b' : 'inherit', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {user.nome} {user.role === 'lider' && '⭐'}
                 </div>
                 <div style={{ fontSize: 11, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {Array.isArray(user.funcao) ? user.funcao.join(', ') : user.funcao}
@@ -175,6 +177,7 @@ export default function App() {
       <Header />
       <main className="page-root" style={{ minHeight: '100vh' }}>
         <Routes>
+          <Route path="/registro" element={<Registro />} />
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
 
