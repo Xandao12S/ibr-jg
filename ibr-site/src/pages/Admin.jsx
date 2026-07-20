@@ -47,9 +47,7 @@ function monthLabelFromDateStr(dStr) {
   try {
     const d = new Date(dStr + 'T00:00:00')
     return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-  } catch {
-    return ''
-  }
+  } catch { return '' }
 }
 function getPeriodosDaRestricao(periodo) {
   if (!periodo) return []
@@ -62,7 +60,7 @@ function getPeriodosDaRestricao(periodo) {
     } catch {}
   }
   return str
-    .replace(/[{}[\]"']/g, '')
+    .replace(/[{}\[\]"']/g, '')
     .split(',')
     .map((item) => normalizePeriod(item.trim()))
     .filter(Boolean)
@@ -89,62 +87,65 @@ function pessoaTemRestricaoNoPeriodo({ nomePessoa, dataEscala, periodoEscala, me
 
 // ---------------- Admin component ----------------
 export default function Admin() {
-  // auth / UI
   const [authorized, setAuthorized] = useState(true)
   const [checked, setChecked] = useState(true)
   const [viewMode, setViewMode] = useState('full')
 
-  // data states
   const [membros, setMembros] = useState([])
   const [restricoes, setRestricoes] = useState([])
   const [informativos, setInformativos] = useState([])
   const [escalaMensal, setEscalaMensal] = useState(null)
   const [album, setAlbum] = useState([])
 
-  // UI / forms
+  // ---- TUTORIAIS state ----
+  const [tutoriais, setTutoriais] = useState([])
+  const [showTutoriaisPanel, setShowTutoriaisPanel] = useState(false)
+  const [tutorialTitulo, setTutorialTitulo] = useState('')
+  const [tutorialPdfFile, setTutorialPdfFile] = useState(null)
+  const [tutorialPdfNome, setTutorialPdfNome] = useState('')
+  const [editingTutorial, setEditingTutorial] = useState(null)
+  const [editingTutorialPdfFile, setEditingTutorialPdfFile] = useState(null)
+  const tutorialPdfInputRef = useRef(null)
+  const editTutorialPdfInputRef = useRef(null)
+
   const [showMembrosPanel, setShowMembrosPanel] = useState(false)
   const [showInformativosPanel, setShowInformativosPanel] = useState(false)
   const [showAlbumPanel, setShowAlbumPanel] = useState(false)
 
-  // membros form
   const [membroNome, setMembroNome] = useState('')
   const [funcoesSelecionadas, setFuncoesSelecionadas] = useState([])
   const [isOpenFuncoes, setIsOpenFuncoes] = useState(false)
   const dropdownRef = useRef(null)
   const funcoesOpcoes = ['Líder', 'Som', 'OBS', 'Holyrics', 'Foto', 'Redes Sociais']
 
-  // editar membro
   const [editingMember, setEditingMember] = useState(null)
 
-  // informativos form
   const [informativoTitulo, setInformativoTitulo] = useState('')
   const [informativoConteudo, setInformativoConteudo] = useState('')
   const [informativoImagem, setInformativoImagem] = useState(null)
+  const [informativoImagemFile, setInformativoImagemFile] = useState(null)
   const [editingInformativo, setEditingInformativo] = useState(null)
+  const [editingInformativoImagemFile, setEditingInformativoImagemFile] = useState(null)
   const fileInputRef = useRef(null)
+  const editFileInputRef = useRef(null)
 
-  // escala & sugestao
   const [sugestaoEditada, setSugestaoEditada] = useState(null)
   const [editingDay, setEditingDay] = useState(null)
   const periodos = ['Manhã', 'Noite']
 
-  // compartilhamento da escala
+  const albumInputRef = useRef(null)
+
   const [showShareModal, setShowShareModal] = useState(false)
   const [shareBgImage, setShareBgImage] = useState(null)
   const shareCardRef = useRef(null)
   const shareBgInputRef = useRef(null)
 
-  // album upload input
-  const albumInputRef = useRef(null)
-
-  // layout styles
-  const containerStyle = { background: '#f7f6f5', minHeight: '100vh', padding: '40px 20px' }
+  const containerStyle = { background: '#f7f6f5', minHeight: '100vh', padding: '40px 20px', paddingBottom: '100px' }
   const cardStyle = { background: '#fff', borderRadius: 8, boxShadow: '0 6px 20px rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.04)', padding: 18 }
-  const topButtonsStyle = { display: 'flex', gap: 10 }
   const addBtnStyle = { background: '#6b1515', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer' }
   const secondaryBtnStyle = { background: '#7b1d1d', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer' }
 
-  // ------------- Supabase CRUD helpers -------------
+  // ---- Supabase CRUD helpers ----
   const fetchMembers = async () => {
     try {
       const { data, error } = await supabase.from('membros').select('id, nome, funcao, created_at').order('created_at', { ascending: false })
@@ -153,8 +154,7 @@ export default function Admin() {
       setMembros(norm)
       localStorage.setItem('membros_ibr', JSON.stringify(norm))
       return norm
-    } catch (err) {
-      console.error('fetchMembers err, fallback localStorage', err)
+    } catch {
       const fallback = JSON.parse(localStorage.getItem('membros_ibr') || '[]')
       setMembros(fallback)
       return fallback
@@ -163,14 +163,17 @@ export default function Admin() {
 
   const fetchInformativos = async () => {
     try {
-      const { data, error } = await supabase.from('informativos').select('id, titulo, conteudo, imagem_url, created_at').order('created_at', { ascending: false })
+      const { data, error } = await supabase
+        .from('informativos')
+        .select('id, titulo, conteudo, imagem_url, fixado, created_at')
+        .order('fixado', { ascending: false })
+        .order('created_at', { ascending: false })
       if (error) throw error
-      const norm = (data || []).map(d => ({ id: d.id, titulo: d.titulo, conteudo: d.conteudo, imagemDataUrl: d.imagem_url || null }))
+      const norm = (data || []).map(d => ({ id: d.id, titulo: d.titulo, conteudo: d.conteudo, imagemDataUrl: d.imagem_url || null, fixado: !!d.fixado }))
       setInformativos(norm)
       localStorage.setItem('informativos_ibr', JSON.stringify(norm))
       return norm
-    } catch (err) {
-      console.error('fetchInformativos err, fallback localStorage', err)
+    } catch {
       const fallback = JSON.parse(localStorage.getItem('informativos_ibr') || '[]')
       setInformativos(fallback)
       return fallback
@@ -192,8 +195,7 @@ export default function Admin() {
         if (fallback) setEscalaMensal(fallback)
         return fallback
       }
-    } catch (err) {
-      console.error('fetchEscalaMensal err, fallback localStorage', err)
+    } catch {
       const fallback = JSON.parse(localStorage.getItem('escala_mensal') || 'null')
       if (fallback) setEscalaMensal(fallback)
       return fallback
@@ -207,8 +209,7 @@ export default function Admin() {
       setRestricoes(data || [])
       localStorage.setItem('restricoes_ibr_list', JSON.stringify(data || []))
       return data || []
-    } catch (err) {
-      console.error('fetchRestricoes err, fallback localStorage', err)
+    } catch {
       const fallback = JSON.parse(localStorage.getItem('restricoes_ibr_list') || '[]')
       setRestricoes(fallback)
       return fallback
@@ -222,27 +223,43 @@ export default function Admin() {
       setAlbum((data || []).map(d => ({ id: d.id, title: d.title, dataUrl: d.image_url })))
       localStorage.setItem('album_ibr', JSON.stringify(data || []))
       return data || []
-    } catch (err) {
-      console.error('fetchAlbum err, fallback localStorage', err)
+    } catch {
       const fallback = JSON.parse(localStorage.getItem('album_ibr') || '[]')
       setAlbum(fallback)
       return fallback
     }
   }
 
+  // ---- TUTORIAIS fetch ----
+  const fetchTutoriais = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tutoriais')
+        .select('id, titulo, pdf_url, created_at')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      setTutoriais(data || [])
+      localStorage.setItem('tutoriais_ibr', JSON.stringify(data || []))
+      return data || []
+    } catch {
+      const fallback = JSON.parse(localStorage.getItem('tutoriais_ibr') || '[]')
+      setTutoriais(fallback)
+      return fallback
+    }
+  }
+
   const fetchAll = useCallback(async () => {
-    await Promise.all([fetchMembers(), fetchInformativos(), fetchEscalaMensal(), fetchRestricoes(), fetchAlbum()])
+    await Promise.all([fetchMembers(), fetchInformativos(), fetchEscalaMensal(), fetchRestricoes(), fetchAlbum(), fetchTutoriais()])
   }, [])
 
-  // ------------------ MEMBERS CRUD ------------------
+  // ---- MEMBERS CRUD ----
   const addMember = async (payload) => {
     try {
       const { data, error } = await supabase.from('membros').insert([payload]).select().single()
       if (error) throw error
       await fetchMembers()
       return data
-    } catch (err) {
-      console.error('addMember error - fallback local', err)
+    } catch {
       const local = JSON.parse(localStorage.getItem('membros_ibr') || '[]')
       const novo = { id: String(Date.now()), nome: payload.nome, funcao: payload.funcao || [] }
       localStorage.setItem('membros_ibr', JSON.stringify([novo, ...local]))
@@ -257,12 +274,10 @@ export default function Admin() {
       if (error) throw error
       await fetchMembers()
       return data
-    } catch (err) {
-      console.error('updateMember err - fallback local', err)
-      const local = JSON.parse(localStorage.getItem('membros_ibr') || '[]')
-      const novo = local.map(m => (m.id === id ? { ...m, ...payload } : m))
-      localStorage.setItem('membros_ibr', JSON.stringify(novo))
-      setMembros(novo)
+    } catch {
+      const local = JSON.parse(localStorage.getItem('membros_ibr') || '[]').map(m => (m.id === id ? { ...m, ...payload } : m))
+      localStorage.setItem('membros_ibr', JSON.stringify(local))
+      setMembros(local)
       return payload
     }
   }
@@ -272,27 +287,23 @@ export default function Admin() {
       const { error } = await supabase.from('membros').delete().eq('id', id)
       if (error) throw error
       await fetchMembers()
-      return true
-    } catch (err) {
-      console.error('deleteMember err - fallback local', err)
+    } catch {
       const local = JSON.parse(localStorage.getItem('membros_ibr') || '[]').filter(m => m.id !== id)
       localStorage.setItem('membros_ibr', JSON.stringify(local))
       setMembros(local)
-      return false
     }
   }
 
-  // ------------------ INFORMATIVOS CRUD ------------------
+  // ---- INFORMATIVOS CRUD ----
   const addInformativo = async (payload) => {
     try {
       const { data, error } = await supabase.from('informativos').insert([payload]).select().single()
       if (error) throw error
       await fetchInformativos()
       return data
-    } catch (err) {
-      console.error('addInformativo err - fallback local', err)
+    } catch {
       const local = JSON.parse(localStorage.getItem('informativos_ibr') || '[]')
-      const novo = { id: String(Date.now()), titulo: payload.titulo, conteudo: payload.conteudo, imagemDataUrl: payload.imagem_url || null }
+      const novo = { id: String(Date.now()), titulo: payload.titulo, conteudo: payload.conteudo, imagemDataUrl: payload.imagem_url || null, fixado: payload.fixado || false }
       localStorage.setItem('informativos_ibr', JSON.stringify([novo, ...local]))
       setInformativos([novo, ...local])
       return novo
@@ -305,8 +316,7 @@ export default function Admin() {
       if (error) throw error
       await fetchInformativos()
       return data
-    } catch (err) {
-      console.error('updateInformativo err - fallback local', err)
+    } catch {
       const local = JSON.parse(localStorage.getItem('informativos_ibr') || '[]').map(i => (i.id === id ? { ...i, ...payload } : i))
       localStorage.setItem('informativos_ibr', JSON.stringify(local))
       setInformativos(local)
@@ -319,25 +329,112 @@ export default function Admin() {
       const { error } = await supabase.from('informativos').delete().eq('id', id)
       if (error) throw error
       await fetchInformativos()
-      return true
-    } catch (err) {
-      console.error('deleteInformativo err - fallback local', err)
+    } catch {
       const local = JSON.parse(localStorage.getItem('informativos_ibr') || '[]').filter(i => i.id !== id)
       localStorage.setItem('informativos_ibr', JSON.stringify(local))
       setInformativos(local)
-      return false
     }
   }
 
-  // ------------------ RESTRIÇÕES CRUD ------------------
+  const handleFixarInformativo = async (id, atualFixado) => {
+    try {
+      await updateInformativo(id, { fixado: !atualFixado })
+    } catch (error) {
+      alert('Erro ao fixar/desfixar: ' + (error.message || error))
+    }
+  }
+
+  // ---- TUTORIAIS CRUD ----
+  const uploadPdfTutorial = async (file) => {
+    if (!file) return null
+    const ext = file.name.split('.').pop() || 'pdf'
+    const nomeArquivo = `tutorial-${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`
+    const { error: uploadError } = await supabase.storage.from('tutoriais').upload(nomeArquivo, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type
+    })
+    if (uploadError) throw new Error(uploadError.message)
+    const { data: publicUrlData } = supabase.storage.from('tutoriais').getPublicUrl(nomeArquivo)
+    return publicUrlData?.publicUrl || null
+  }
+
+  const addTutorial = async (payload) => {
+    try {
+      const { data, error } = await supabase.from('tutoriais').insert([payload]).select().single()
+      if (error) throw error
+      await fetchTutoriais()
+      return data
+    } catch {
+      const local = JSON.parse(localStorage.getItem('tutoriais_ibr') || '[]')
+      const novo = { id: String(Date.now()), titulo: payload.titulo, pdf_url: payload.pdf_url || null }
+      localStorage.setItem('tutoriais_ibr', JSON.stringify([novo, ...local]))
+      setTutoriais([novo, ...local])
+      return novo
+    }
+  }
+
+  const updateTutorial = async (id, payload) => {
+    try {
+      const { data, error } = await supabase.from('tutoriais').update(payload).eq('id', id).select().single()
+      if (error) throw error
+      await fetchTutoriais()
+      return data
+    } catch {
+      const local = JSON.parse(localStorage.getItem('tutoriais_ibr') || '[]').map(t => (t.id === id ? { ...t, ...payload } : t))
+      localStorage.setItem('tutoriais_ibr', JSON.stringify(local))
+      setTutoriais(local)
+      return payload
+    }
+  }
+
+  const deleteTutorial = async (id) => {
+    try {
+      const { error } = await supabase.from('tutoriais').delete().eq('id', id)
+      if (error) throw error
+      await fetchTutoriais()
+    } catch {
+      const local = JSON.parse(localStorage.getItem('tutoriais_ibr') || '[]').filter(t => t.id !== id)
+      localStorage.setItem('tutoriais_ibr', JSON.stringify(local))
+      setTutoriais(local)
+    }
+  }
+
+  const handleAddTutorial = async () => {
+    const titulo = tutorialTitulo.trim()
+    if (!titulo) { alert('Digite um título para o tutorial.'); return }
+    try {
+      let pdf_url = null
+      if (tutorialPdfFile) pdf_url = await uploadPdfTutorial(tutorialPdfFile)
+      await addTutorial({ titulo, pdf_url })
+      setTutorialTitulo('')
+      setTutorialPdfFile(null)
+      setTutorialPdfNome('')
+      setShowTutoriaisPanel(false)
+    } catch (error) { alert(`Erro ao salvar tutorial: ${error.message}`) }
+  }
+
+  const handleSaveEditTutorial = async () => {
+    if (!editingTutorial) return
+    const titulo = editingTutorial.titulo?.trim()
+    if (!titulo) { alert('Digite um título para o tutorial.'); return }
+    try {
+      let pdf_url = editingTutorial.pdf_url || null
+      if (editingTutorialPdfFile) pdf_url = await uploadPdfTutorial(editingTutorialPdfFile)
+      await updateTutorial(editingTutorial.id, { titulo, pdf_url })
+      setEditingTutorial(null)
+      setEditingTutorialPdfFile(null)
+    } catch (error) { alert(`Erro ao atualizar tutorial: ${error.message}`) }
+  }
+
+  // ---- RESTRIÇÕES CRUD ----
   const addRestricao = async (payload) => {
     try {
       const { data, error } = await supabase.from('restricoes').insert([payload]).select().single()
       if (error) throw error
       await fetchRestricoes()
       return data
-    } catch (err) {
-      console.error('addRestricao err - fallback local', err)
+    } catch {
       const local = JSON.parse(localStorage.getItem('restricoes_ibr_list') || '[]')
       const novo = { id: String(Date.now()), ...payload }
       localStorage.setItem('restricoes_ibr_list', JSON.stringify([novo, ...local]))
@@ -347,23 +444,18 @@ export default function Admin() {
   }
 
   const deleteRestricao = async (id) => {
-    const confirmar = window.confirm('Deseja realmente remover esta restrição?')
-    if (!confirmar) return
     try {
-      const { data, error } = await supabase.from('restricoes').delete().eq('id', id).select('id')
+      const { error } = await supabase.from('restricoes').delete().eq('id', id)
       if (error) throw error
-      if (!data || data.length === 0) {
-        throw new Error('O Supabase não autorizou a remoção desta restrição. Verifique a política RLS da tabela restricoes.')
-      }
-      setRestricoes((prev) => prev.filter((r) => r.id !== id))
-      localStorage.setItem('restricoes_ibr_list', JSON.stringify(restricoes.filter((r) => r.id !== id)))
-    } catch (err) {
-      console.error('Erro ao remover restrição:', err)
-      alert(`Não foi possível remover a restrição no Supabase.\n\n${err.message || 'Verifique as permissões da tabela restricoes.'}`)
+      await fetchRestricoes()
+    } catch {
+      const local = JSON.parse(localStorage.getItem('restricoes_ibr_list') || '[]').filter(r => r.id !== id)
+      localStorage.setItem('restricoes_ibr_list', JSON.stringify(local))
+      setRestricoes(local)
     }
   }
 
-  // ------------------ ESCALA MENSAL ------------------
+  // ---- ESCALA MENSAL ----
   const publishEscalaMensal = async (obj) => {
     try {
       const payload = { month_label: obj.monthLabel, data: obj.data }
@@ -371,8 +463,7 @@ export default function Admin() {
       if (error) throw error
       await fetchEscalaMensal()
       return data
-    } catch (err) {
-      console.error('publishEscalaMensal err - fallback local', err)
+    } catch {
       const localObj = { id: String(Date.now()), monthLabel: obj.monthLabel, data: obj.data, createdAt: new Date().toISOString() }
       localStorage.setItem('escala_mensal', JSON.stringify(localObj))
       setEscalaMensal(localObj)
@@ -386,12 +477,9 @@ export default function Admin() {
       if (error) throw error
       setEscalaMensal(null)
       localStorage.removeItem('escala_mensal')
-      return true
-    } catch (err) {
-      console.error('deleteEscalaMensal err - fallback local', err)
+    } catch {
       setEscalaMensal(null)
       localStorage.removeItem('escala_mensal')
-      return false
     }
   }
 
@@ -406,11 +494,9 @@ export default function Admin() {
         const { data: publicData } = await supabase.storage.from('album_ibr').getPublicUrl(fileName)
         const publicUrl = publicData?.publicUrl || null
         const { data: row, error: insertErr } = await supabase.from('album').insert([{ title: file.name, image_url: publicUrl }]).select().single()
-        if (insertErr) { alert(`Erro ao criar registro no DB para ${file.name}: ${insertErr.message}`); continue }
+        if (insertErr) { alert(`Erro ao criar registro: ${insertErr.message}`); continue }
         resultRows.push(row)
-      } catch (err) {
-        alert('Erro inesperado ao enviar arquivo: ' + (err.message || err))
-      }
+      } catch (err) { alert('Erro inesperado: ' + (err.message || err)) }
     }
     if (resultRows.length) await fetchAlbum()
     return resultRows
@@ -421,17 +507,29 @@ export default function Admin() {
       const { error } = await supabase.from('album').delete().eq('id', id)
       if (error) throw error
       await fetchAlbum()
-      return true
-    } catch (err) {
-      console.error('deleteAlbumRow err', err)
+    } catch {
       const local = JSON.parse(localStorage.getItem('album_ibr') || '[]').filter(a => a.id !== id)
       localStorage.setItem('album_ibr', JSON.stringify(local))
       setAlbum(local)
-      return false
     }
   }
 
-  // ------------------ UI helpers (membros) ------------------
+  // ---- Upload imagem informativo ----
+  const uploadImagemInformativo = async (file) => {
+    if (!file) return null
+    const extensaoOriginal = file.name.split('.').pop() || 'jpg'
+    const nomeArquivo = `informativo-${Date.now()}-${Math.random().toString(36).substring(2)}.${extensaoOriginal}`
+    const { error: uploadError } = await supabase.storage.from('informativos').upload(nomeArquivo, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type
+    })
+    if (uploadError) throw new Error(uploadError.message)
+    const { data: publicUrlData } = supabase.storage.from('informativos').getPublicUrl(nomeArquivo)
+    return publicUrlData?.publicUrl || null
+  }
+
+  // ---- UI helpers ----
   const toggleFuncao = (f) => setFuncoesSelecionadas(prev => (prev.includes(f) ? prev.filter(i => i !== f) : [...prev, f]))
 
   const handleAddMemberClick = async () => {
@@ -447,19 +545,43 @@ export default function Admin() {
 
   const handleSaveEditedMember = async () => {
     if (!editingMember) return
-    await updateMember(editingMember.id, { nome: editingMember.nome, funcao: editingMember.funcao })
+    const { id, nome, funcao } = editingMember
+    await updateMember(id, { nome, funcao })
     setEditingMember(null)
   }
 
-  // ------------------ Informativos UI handlers ------------------
   const handleFundoClick = () => { if (fileInputRef.current) fileInputRef.current.click() }
 
   const handleFileChange = (e) => {
     const file = e.target.files && e.target.files[0]
     if (!file) return
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecione somente uma imagem.')
+      e.target.value = ''
+      return
+    }
     const reader = new FileReader()
-    reader.onload = () => setInformativoImagem(reader.result)
-    reader.onerror = () => console.error('Erro ao ler arquivo.')
+    reader.onload = () => {
+      setInformativoImagem(reader.result)
+      setInformativoImagemFile(file)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  const handleEditInformativoFileChange = (e) => {
+    const file = e.target.files && e.target.files[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecione somente uma imagem.')
+      e.target.value = ''
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      setEditingInformativo(prev => ({ ...prev, imagemDataUrl: reader.result }))
+      setEditingInformativoImagemFile(file)
+    }
     reader.readAsDataURL(file)
     e.target.value = ''
   }
@@ -476,41 +598,42 @@ export default function Admin() {
 
   const handleAddInformativo = async () => {
     const titulo = informativoTitulo.trim()
-    if (!titulo) return
-    let imagem_url = null
-    if (informativoImagem && typeof informativoImagem === 'string' && informativoImagem.startsWith('data:')) {
-      try {
-        const blob = dataURLtoBlob(informativoImagem)
-        const fileName = `informativo-${Date.now()}.jpg`
-        const { error: uploadError } = await supabase.storage.from('album_ibr').upload(fileName, blob)
-        if (!uploadError) {
-          const { data: publicData } = await supabase.storage.from('album_ibr').getPublicUrl(fileName)
-          imagem_url = publicData?.publicUrl || null
-        }
-      } catch (err) {
-        console.error('informativo image upload err', err)
-      }
-    }
-    await addInformativo({ titulo, conteudo: informativoConteudo.trim(), imagem_url })
-    setInformativoTitulo('')
-    setInformativoConteudo('')
-    setInformativoImagem(null)
-    setShowInformativosPanel(false)
+    if (!titulo) { alert('Digite um título para o informativo.'); return }
+    try {
+      let imagem_url = null
+      if (informativoImagemFile) imagem_url = await uploadImagemInformativo(informativoImagemFile)
+      await addInformativo({ titulo, conteudo: informativoConteudo.trim(), imagem_url })
+      setInformativoTitulo('')
+      setInformativoConteudo('')
+      setInformativoImagem(null)
+      setInformativoImagemFile(null)
+      setShowInformativosPanel(false)
+    } catch (error) { alert(`Não foi possível salvar a imagem do informativo: ${error.message}`) }
   }
 
-  const handleStartEditInformativo = (item) => setEditingInformativo({ ...item })
+  const handleStartEditInformativo = (item) => {
+    setEditingInformativo({ ...item })
+    setEditingInformativoImagemFile(null)
+  }
 
   const handleSaveEditInformativo = async () => {
     if (!editingInformativo) return
-    await updateInformativo(editingInformativo.id, {
-      titulo: editingInformativo.titulo,
-      conteudo: editingInformativo.conteudo,
-      imagem_url: editingInformativo.imagemDataUrl || editingInformativo.imagem_url || null
-    })
-    setEditingInformativo(null)
+    const titulo = editingInformativo.titulo?.trim()
+    if (!titulo) { alert('Digite um título para o informativo.'); return }
+    try {
+      let imagem_url = editingInformativo.imagemDataUrl || null
+      if (editingInformativoImagemFile) imagem_url = await uploadImagemInformativo(editingInformativoImagemFile)
+      await updateInformativo(editingInformativo.id, {
+        titulo,
+        conteudo: editingInformativo.conteudo?.trim() || '',
+        imagem_url
+      })
+      setEditingInformativo(null)
+      setEditingInformativoImagemFile(null)
+    } catch (error) { alert(`Não foi possível atualizar a imagem: ${error.message}`) }
   }
 
-  // ------------------ Escala helpers ------------------
+  // ---- Escala helpers ----
   function gerarEscalaAutomatica() {
     const hoje = new Date()
     const domingos = []
@@ -519,91 +642,43 @@ export default function Admin() {
       if (d.getDay() === 0) domingos.push(dateToYMD(d))
       d.setDate(d.getDate() + 1)
     }
-
     const funcoesEscala = ['Som', 'OBS', 'Holyrics', 'Foto', 'Redes Sociais']
-
     const escala = domingos.map(dataRaw => {
       const dataDomingo = normalizeDateStr(dataRaw)
       const turnos = {}
-
       periodos.forEach(periodoAtual => {
         const alocados = {}
         const assignedKeys = new Set()
-
         funcoesEscala.forEach(funcao => {
           const candidatos = membros.filter(membro => {
             const temFuncao = Array.isArray(membro.funcao) ? membro.funcao.includes(funcao) : membro.funcao === funcao
             if (!temFuncao || assignedKeys.has(membro.id)) return false
-
             const temRestricao = restricoes.some(restricao => {
-              const mesmaPessoa =
-                String(restricao.member_id || '') === String(membro.id || '') ||
-                namesMatch(membro.nome, restricao.responsavel)
+              const mesmaPessoa = String(restricao.member_id || '') === String(membro.id || '') || namesMatch(membro.nome, restricao.responsavel)
               if (!mesmaPessoa) return false
-
               const dataRestricao = normalizeDateStr(restricao.data)
               const periodosRestricao = getPeriodosDaRestricao(restricao.periodo)
               const bloqueioNoDia = dataRestricao === dataDomingo && periodosRestricao.includes(periodoAtual)
-
               const dataDaRestricao = parseYMDLocal(dataRestricao)
               let bloqueioPorSabado = false
               if (dataDaRestricao && dataDaRestricao.getDay() === 6) {
                 const diaSeguinte = new Date(dataDaRestricao)
                 diaSeguinte.setDate(diaSeguinte.getDate() + 1)
-                if (dateToYMD(diaSeguinte) === dataDomingo && periodosRestricao.includes(periodoAtual)) {
-                  bloqueioPorSabado = true
-                }
+                if (dateToYMD(diaSeguinte) === dataDomingo && periodosRestricao.includes(periodoAtual)) bloqueioPorSabado = true
               }
               return bloqueioNoDia || bloqueioPorSabado
             })
-
             return !temRestricao
           })
-
           const escolhido = candidatos.length ? candidatos[Math.floor(Math.random() * candidatos.length)] : null
-          if (escolhido) {
-            alocados[funcao] = escolhido.nome
-            assignedKeys.add(escolhido.id)
-          } else {
-            alocados[funcao] = 'Vago'
-          }
+          if (escolhido) { alocados[funcao] = escolhido.nome; assignedKeys.add(escolhido.id) }
+          else alocados[funcao] = 'Vago'
         })
-
         turnos[periodoAtual] = alocados
       })
-
       return { data: dataRaw, turnos }
     })
-
     setSugestaoEditada(escala)
-  }
-
-  function trocarPessoaDaEscala(diaData, periodo, funcao, novoNome) {
-    if (!novoNome || novoNome === 'Vago') {
-      setSugestaoEditada(prev =>
-        prev.map(sd =>
-          sd.data === diaData
-            ? { ...sd, turnos: { ...sd.turnos, [periodo]: { ...sd.turnos[periodo], [funcao]: 'Vago' } } }
-            : sd
-        )
-      )
-      return
-    }
-
-    const temRestricao = pessoaTemRestricaoNoPeriodo({ nomePessoa: novoNome, dataEscala: diaData, periodoEscala: periodo, membros, restricoes })
-
-    if (temRestricao) {
-      const confirmar = window.confirm(`⚠️ ${novoNome} tem restrição nesse dia/período (${periodo}). Realmente deseja escalar essa pessoa?`)
-      if (!confirmar) return
-    }
-
-    setSugestaoEditada(prev =>
-      prev.map(sd =>
-        sd.data === diaData
-          ? { ...sd, turnos: { ...sd.turnos, [periodo]: { ...sd.turnos[periodo], [funcao]: novoNome } } }
-          : sd
-      )
-    )
   }
 
   const handlePublishEscala = async (escalaArr) => {
@@ -613,12 +688,7 @@ export default function Admin() {
     setSugestaoEditada(null)
   }
 
-  // ------------------ Compartilhar escala ------------------
-  const handleCompartilharEscala = () => {
-    if (!sugestaoEditada) return
-    setShowShareModal(true)
-  }
-
+  // ---- Compartilhar ----
   const handleShareBgChange = (e) => {
     const file = e.target.files && e.target.files[0]
     if (!file) return
@@ -628,33 +698,19 @@ export default function Admin() {
     e.target.value = ''
   }
 
-  const handleGerarImagem = async () => {
+  const handleGenerateShareImage = async () => {
     if (!shareCardRef.current) return
     try {
-      const canvas = await html2canvas(shareCardRef.current, {
-        useCORS: true,
-        scale: 2,
-        backgroundColor: null,
-      })
-      const dataUrl = canvas.toDataURL('image/png')
-
-      if (navigator.share) {
-        const blob = await (await fetch(dataUrl)).blob()
-        const file = new File([blob], 'escala.png', { type: 'image/png' })
-        await navigator.share({ files: [file], title: 'Escala IBR' }).catch(() => {})
-      } else {
-        const link = document.createElement('a')
-        link.href = dataUrl
-        link.download = 'escala-ibr.png'
-        link.click()
-      }
-    } catch (err) {
-      console.error('Erro ao gerar imagem:', err)
-      alert('Erro ao gerar imagem.')
-    }
+      const canvas = await html2canvas(shareCardRef.current, { useCORS: true, scale: 2, backgroundColor: null })
+      const url = canvas.toDataURL('image/png')
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'escala.png'
+      link.click()
+    } catch (err) { alert('Erro ao gerar imagem: ' + err.message) }
   }
 
-  // ------------------ Album handlers ------------------
+  // ---- Album handlers ----
   const handleAlbumFileInput = async (e) => {
     const files = Array.from(e.target.files || [])
     if (files.length === 0) return
@@ -662,7 +718,7 @@ export default function Admin() {
     e.target.value = ''
   }
 
-  // ------------------ Lifecycle ------------------
+  // ---- Lifecycle ----
   useEffect(() => { setChecked(true) }, [])
   useEffect(() => { fetchAll() }, [fetchAll])
   useEffect(() => {
@@ -673,7 +729,6 @@ export default function Admin() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // ------------------ RENDER ------------------
   if (!checked) return null
   if (!authorized) return <div style={{ padding: 20 }}>Acesso negado.</div>
 
@@ -682,161 +737,47 @@ export default function Admin() {
       <div style={{ maxWidth: 980, margin: '0 auto' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <h1 style={{ margin: 0, fontSize: 22 }}>Painel ADM</h1>
-          <div style={topButtonsStyle}>
-            <button onClick={() => setViewMode(v => v === 'full' ? 'escala' : 'full')} style={secondaryBtnStyle}>
+        <div style={{ marginBottom: 18 }}>
+          <h1 style={{ margin: '0 0 12px 0', fontSize: 22 }}>Painel ADM</h1>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={() => setViewMode(v => v === 'full' ? 'escala' : 'full')} style={{ ...secondaryBtnStyle, flex: '1 1 auto', minWidth: 100 }}>
               {viewMode === 'full' ? 'Escala' : 'Fechar Escala'}
             </button>
             {viewMode === 'full' && (
-              <button onClick={() => { setShowMembrosPanel(s => !s); setShowInformativosPanel(false); setShowAlbumPanel(false) }} style={secondaryBtnStyle}>
+              <button onClick={() => { setShowMembrosPanel(s => !s); setShowInformativosPanel(false); setShowAlbumPanel(false); setShowTutoriaisPanel(false) }} style={{ ...secondaryBtnStyle, flex: '1 1 auto', minWidth: 100 }}>
                 {showMembrosPanel ? 'Fechar Membros' : 'Membros'}
               </button>
             )}
             {viewMode === 'full' && (
-              <button onClick={() => { setShowInformativosPanel(s => !s); setShowMembrosPanel(false); setShowAlbumPanel(false) }} style={secondaryBtnStyle}>
+              <button onClick={() => { setShowInformativosPanel(s => !s); setShowMembrosPanel(false); setShowAlbumPanel(false); setShowTutoriaisPanel(false) }} style={{ ...secondaryBtnStyle, flex: '1 1 auto', minWidth: 100 }}>
                 {showInformativosPanel ? 'Fechar Informativos' : 'Informativos'}
               </button>
             )}
             {viewMode === 'full' && (
-              <button onClick={() => { setShowAlbumPanel(s => !s); setShowInformativosPanel(false); setShowMembrosPanel(false) }} style={{ ...secondaryBtnStyle, background: showAlbumPanel ? '#5a1515' : secondaryBtnStyle.background }}>
+              <button onClick={() => { setShowAlbumPanel(s => !s); setShowInformativosPanel(false); setShowMembrosPanel(false); setShowTutoriaisPanel(false) }} style={{ ...secondaryBtnStyle, flex: '1 1 auto', minWidth: 100, background: showAlbumPanel ? '#5a1515' : secondaryBtnStyle.background }}>
                 {showAlbumPanel ? 'Fechar Álbum' : 'Álbum'}
               </button>
             )}
+            {viewMode === 'full' && (
+              <button onClick={() => { setShowTutoriaisPanel(s => !s); setShowMembrosPanel(false); setShowInformativosPanel(false); setShowAlbumPanel(false) }} style={{ ...secondaryBtnStyle, flex: '1 1 auto', minWidth: 100, background: showTutoriaisPanel ? '#5a1515' : secondaryBtnStyle.background }}>
+                {showTutoriaisPanel ? 'Fechar Tutoriais' : 'Tutoriais'}
+              </button>
+            )}
             {viewMode === 'escala' && (
-              <button onClick={gerarEscalaAutomatica} style={{ ...addBtnStyle, background: '#111' }}>Criar Escala</button>
+              <button onClick={gerarEscalaAutomatica} style={{ ...addBtnStyle, background: '#111', flex: '1 1 auto', minWidth: 100 }}>Criar Escala</button>
             )}
           </div>
         </div>
 
-        {/* Modal de Compartilhar */}
-        {showShareModal && sugestaoEditada && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, overflowY: 'auto' }}>
-            <div style={{ background: '#fff', borderRadius: 12, padding: 20, maxWidth: 560, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <h3 style={{ margin: 0 }}>Compartilhar Escala</h3>
-                <button onClick={() => setShowShareModal(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>✕</button>
-              </div>
-
-              {/* Seletor de fundo */}
-              <div style={{ marginBottom: 14, display: 'flex', gap: 10, alignItems: 'center' }}>
-                <input ref={shareBgInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleShareBgChange} />
-                <button
-                  onClick={() => shareBgInputRef.current && shareBgInputRef.current.click()}
-                  style={{ background: '#f3f4f6', border: '1px solid #d1d5db', padding: '8px 14px', borderRadius: 8, cursor: 'pointer' }}
-                >
-                  🖼️ {shareBgImage ? 'Trocar Fundo' : 'Escolher Fundo'}
-                </button>
-                {shareBgImage && (
-                  <button onClick={() => setShareBgImage(null)} style={{ background: '#fee2e2', border: '1px solid #fca5a5', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', color: '#991b1b' }}>
-                    Remover Fundo
-                  </button>
-                )}
-              </div>
-
-              {/* Preview da escala */}
-<div
-  ref={shareCardRef}
-  style={{
-    position: 'relative',
-    borderRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: shareBgImage ? 'transparent' : '#f5f0e8',
-    padding: '20px 18px',
-    minHeight: 300,
-  }}
->
-  {/* Imagem de fundo via <img> para o html2canvas capturar corretamente */}
-  {shareBgImage && (
-    <img
-      src={shareBgImage}
-      alt=""
-      style={{
-        position: 'absolute',
-        inset: 0,
-        width: '100%',
-        height: '100%',
-        objectFit: 'cover',
-        borderRadius: 10,
-        zIndex: 0,
-      }}
-    />
-  )}
-
-  {/* Overlay semitransparente */}
-  {shareBgImage && (
-    <div style={{
-      position: 'absolute',
-      inset: 0,
-      background: 'rgba(255,255,255,0.82)',
-      borderRadius: 10,
-      zIndex: 1,
-    }} />
-  )}
-
-  <div style={{ position: 'relative', zIndex: 2 }}>
-    {/* Título */}
-    <div style={{ textAlign: 'center', marginBottom: 16 }}>
-      <span style={{ fontSize: 20, fontWeight: 900, color: '#1a2a5e' }}>
-        📢 Escala —{' '}
-        {sugestaoEditada[0] &&
-          new Date(sugestaoEditada[0].data + 'T00:00:00')
-            .toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-            .replace(/^\w/, c => c.toUpperCase())}
-      </span>
-    </div>
-
-    {/* Dias */}
-    {sugestaoEditada.map(dia => (
-      <div key={dia.data} style={{
-        background: 'rgba(255,255,255,0.88)',
-        borderRadius: 8,
-        padding: '10px 14px',
-        marginBottom: 10,
-        borderLeft: '4px solid #e8a020'
-      }}>
-        <div style={{ fontWeight: 800, fontSize: 14, color: '#1a2a5e', marginBottom: 8 }}>
-          📅 {new Date(dia.data + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
-        </div>
-        <div style={{ display: 'flex', gap: 12 }}>
-          {periodos.map(p => (
-            <div key={p} style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, color: '#1a2a5e', fontSize: 12, marginBottom: 4, borderBottom: '1px solid #e8a020', paddingBottom: 2 }}>{p}</div>
-              {Object.entries(dia.turnos[p] || {}).map(([f, n]) => (
-                <div key={f} style={{ fontSize: 12, color: '#222', lineHeight: 1.8 }}>
-                  <span style={{ fontWeight: 700, color: '#1a2a5e' }}>{f}:</span> {n}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-
-              {/* Botões de ação */}
-              <div style={{ display: 'flex', gap: 10, marginTop: 14, justifyContent: 'flex-end' }}>
-                <button onClick={() => setShowShareModal(false)} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer' }}>
-                  Cancelar
-                </button>
-                <button onClick={handleGerarImagem} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-                  📤 Gerar e Compartilhar
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div style={cardStyle}>
 
-          {/* Membros Panel */}
+          {/* ---- Membros Panel ---- */}
           {viewMode === 'full' && showMembrosPanel && (
             <>
               <h3 style={{ marginTop: 0, marginBottom: 12 }}>Cadastrar Membro</h3>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 18 }}>
-                <input placeholder="Nome" value={membroNome} onChange={e => setMembroNome(e.target.value)} style={{ padding: 10, flex: 1, borderRadius: 6, border: '1px solid #e6e6e6' }} />
-                <div ref={dropdownRef} style={{ position: 'relative', width: 320 }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 18, flexWrap: 'wrap' }}>
+                <input placeholder="Nome" value={membroNome} onChange={e => setMembroNome(e.target.value)} style={{ padding: 10, flex: 1, minWidth: 150, borderRadius: 6, border: '1px solid #e6e6e6' }} />
+                <div ref={dropdownRef} style={{ position: 'relative', flex: '1 1 200px', minWidth: 180 }}>
                   <div onClick={() => setIsOpenFuncoes(!isOpenFuncoes)} style={{ padding: 10, borderRadius: 6, border: '1px solid #e6e6e6', background: '#fff', cursor: 'pointer', color: funcoesSelecionadas.length ? '#000' : '#9ca3af' }}>
                     {funcoesSelecionadas.length ? funcoesSelecionadas.join(', ') : 'Selecione as funções...'}
                   </div>
@@ -855,25 +796,32 @@ export default function Admin() {
               </div>
 
               <div style={{ borderTop: '1px solid #f0f0f0', borderRadius: 6, overflow: 'hidden' }}>
-                {membros.length === 0 ? (
-                  <div style={{ padding: 16, color: '#9ca3af' }}>Nenhum membro cadastrado.</div>
-                ) : membros.map(m => (
-                  <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 8px', borderBottom: '1px solid #f0f0f0' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 40, height: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, background: (Array.isArray(m.funcao) ? m.funcao.includes('Líder') : m.funcao === 'Líder') ? '#ffecb5' : 'transparent', color: (Array.isArray(m.funcao) ? m.funcao.includes('Líder') : m.funcao === 'Líder') ? '#b8860b' : '#374151', fontWeight: 800 }}>
-                        {String(m.nome || '').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase()}
+                {membros.length === 0
+                  ? <div style={{ padding: 16, color: '#9ca3af' }}>Nenhum membro cadastrado.</div>
+                  : membros.map(m => (
+                    <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 8px', borderBottom: '1px solid #f0f0f0', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          width: 40, height: 40, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          borderRadius: 8,
+                          background: (Array.isArray(m.funcao) ? m.funcao.includes('Líder') : m.funcao === 'Líder') ? '#ffecb5' : 'transparent',
+                          color: (Array.isArray(m.funcao) ? m.funcao.includes('Líder') : m.funcao === 'Líder') ? '#b8860b' : '#374151',
+                          fontWeight: 800
+                        }}>
+                          {String(m.nome || '').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase()}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.nome}</div>
+                          <div style={{ color: '#4b5563', fontSize: 13 }}>{Array.isArray(m.funcao) ? m.funcao.join(', ') : m.funcao}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div style={{ fontWeight: 700 }}>{m.nome}</div>
-                        <div style={{ color: '#4b5563' }}>{Array.isArray(m.funcao) ? m.funcao.join(', ') : m.funcao}</div>
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
+                        <button onClick={() => startEditMember(m)} style={{ background: 'none', border: '1px solid #f3f4f6', padding: '6px 10px', borderRadius: 8, cursor: 'pointer', color: '#0f172a', fontWeight: 700, whiteSpace: 'nowrap' }}>Editar</button>
+                        <button onClick={() => deleteMember(m.id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>Remover</button>
                       </div>
                     </div>
-                    <div>
-                      <button onClick={() => startEditMember(m)} style={{ background: 'none', border: '1px solid #f3f4f6', padding: '8px 10px', borderRadius: 8, cursor: 'pointer', color: '#0f172a', fontWeight: 700 }}>Editar</button>
-                      <button onClick={() => deleteMember(m.id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', marginLeft: 8 }}>Remover</button>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                }
               </div>
 
               {editingMember && (
@@ -897,7 +845,7 @@ export default function Admin() {
             </>
           )}
 
-          {/* Album Panel */}
+          {/* ---- Album Panel ---- */}
           {viewMode === 'full' && showAlbumPanel && (
             <div style={{ padding: 20, textAlign: 'center', background: '#f9f9f9', borderRadius: 10, border: '2px dashed #ddd' }}>
               <h3 style={{ marginTop: 0 }}>Painel do Álbum</h3>
@@ -909,41 +857,37 @@ export default function Admin() {
               <div style={{ marginTop: 25, borderTop: '1px solid #eee', paddingTop: 15 }}>
                 <h4 style={{ marginBottom: 15 }}>Fotos no servidor:</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 10 }}>
-                  {album.length === 0 ? (
-                    <p style={{ color: '#999', gridColumn: '1/-1' }}>Nenhuma foto ainda.</p>
-                  ) : album.map(foto => (
-                    <div key={foto.id} style={{ position: 'relative', borderRadius: 6, overflow: 'hidden', height: 100, border: '1px solid #ddd' }}>
-                      <img src={foto.dataUrl || foto.image_url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      <button onClick={() => deleteAlbumRow(foto.id)} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(255,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: 12 }}>×</button>
-                    </div>
-                  ))}
+                  {album.length === 0
+                    ? <p style={{ color: '#999', gridColumn: '1/-1' }}>Nenhuma foto ainda.</p>
+                    : album.map(foto => (
+                      <div key={foto.id} style={{ position: 'relative', borderRadius: 6, overflow: 'hidden', height: 100, border: '1px solid #ddd' }}>
+                        <img src={foto.dataUrl || foto.image_url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <button onClick={() => deleteAlbumRow(foto.id)} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(255,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: 12 }}>×</button>
+                      </div>
+                    ))
+                  }
                 </div>
               </div>
             </div>
           )}
 
-          {/* Informativos Panel */}
+          {/* ---- Informativos Panel ---- */}
           {viewMode === 'full' && showInformativosPanel && (
             <div style={{ marginBottom: 16 }}>
               <h3 style={{ marginTop: 0 }}>Adicionar Informativo</h3>
-              <input ref={fileInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFileChange} />
-              <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'auto 1fr 160px', alignItems: 'center', marginBottom: 12 }}>
-                <div>
-                  <button onClick={handleFundoClick} style={{ background: '#f3f4f6', border: '1px solid #e6e6e6', padding: '8px 12px', borderRadius: 8 }}>Fundo</button>
-                </div>
+              <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
+              <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'auto 1fr', alignItems: 'center', marginBottom: 12 }}>
+                <button onClick={handleFundoClick} style={{ background: '#f3f4f6', border: '1px solid #e6e6e6', padding: '8px 12px', borderRadius: 8 }}>Fundo</button>
                 <input placeholder="Título do informativo" value={informativoTitulo} onChange={e => setInformativoTitulo(e.target.value)} style={{ padding: 10, borderRadius: 6, border: '1px solid #e6e6e6' }} />
-                <div style={{ display: 'flex', gap: 8 }}>
+                <textarea placeholder="Conteúdo (curto)" value={informativoConteudo} onChange={e => setInformativoConteudo(e.target.value)} style={{ gridColumn: '1 / span 2', padding: 10, borderRadius: 6, border: '1px solid #e6e6e6', minHeight: 100 }} />
+                <div style={{ gridColumn: '1 / span 2', display: 'flex', gap: 8 }}>
                   <button onClick={handleAddInformativo} style={{ ...addBtnStyle, padding: '10px 12px' }}>Adicionar</button>
-                  <button onClick={() => { setInformativoTitulo(''); setInformativoConteudo(''); setInformativoImagem(null); setShowInformativosPanel(false) }} style={{ background: '#e5e7eb', border: 'none', padding: '10px 12px', borderRadius: 8 }}>Cancelar</button>
+                  <button onClick={() => { setInformativoTitulo(''); setInformativoConteudo(''); setInformativoImagem(null); setInformativoImagemFile(null); setShowInformativosPanel(false) }} style={{ background: '#e5e7eb', border: 'none', padding: '10px 12px', borderRadius: 8 }}>Cancelar</button>
                 </div>
-                <textarea placeholder="Conteúdo (curto)" value={informativoConteudo} onChange={e => setInformativoConteudo(e.target.value)} style={{ gridColumn: '1 / span 3', padding: 10, borderRadius: 6, border: '1px solid #e6e6e6', minHeight: 100 }} />
                 {informativoImagem && (
-                  <div style={{ gridColumn: '1 / span 3', display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ gridColumn: '1 / span 2', display: 'flex', gap: 8, alignItems: 'center' }}>
                     <img src={informativoImagem} alt="preview" style={{ width: 120, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #e6e6e6' }} />
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={() => setInformativoImagem(null)} style={{ background: '#fee2e2', border: '1px solid #fca5a5', padding: '6px 10px', borderRadius: 8 }}>Remover Foto</button>
-                      <div style={{ color: '#6b7280', fontSize: 13 }}>Foto selecionada.</div>
-                    </div>
+                    <button onClick={() => { setInformativoImagem(null); setInformativoImagemFile(null) }} style={{ background: '#fee2e2', border: '1px solid #fca5a5', padding: '6px 10px', borderRadius: 8 }}>Remover Foto</button>
                   </div>
                 )}
               </div>
@@ -955,14 +899,28 @@ export default function Admin() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {informativos.map(item => (
-                      <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', border: '1px solid #e6e6e6', borderRadius: 8, background: '#fff' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{ width: 56, height: 44, borderRadius: 8, overflow: 'hidden', background: '#f3f3f3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {item.imagemDataUrl ? <img src={item.imagemDataUrl} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#999', fontSize: 12 }}>sem foto</span>}
+                      <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', border: '1px solid #e6e6e6', borderRadius: 8, background: '#fff', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+                          <div style={{ width: 56, height: 44, borderRadius: 8, overflow: 'hidden', background: '#f3f3f3', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            {item.imagemDataUrl
+                              ? <img src={item.imagemDataUrl} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              : <span style={{ color: '#999', fontSize: 12 }}>sem foto</span>}
                           </div>
-                          <div style={{ fontWeight: 700, color: '#111' }}>{item.titulo}</div>
+                          <div style={{ fontWeight: 700, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.titulo}</div>
                         </div>
-                        <div style={{ display: 'flex', gap: 8 }}>
+                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                          <button
+                            onClick={() => handleFixarInformativo(item.id, item.fixado)}
+                            style={{
+                              padding: '8px 12px', borderRadius: 8,
+                              border: item.fixado ? '1px solid #93c5fd' : '1px solid #d1d5db',
+                              background: item.fixado ? '#dbeafe' : '#f9fafb',
+                              color: item.fixado ? '#1e40af' : '#374151',
+                              cursor: 'pointer', whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {item.fixado ? 'Desfixar' : 'Fixar'}
+                          </button>
                           <button onClick={() => handleStartEditInformativo(item)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer' }}>Editar</button>
                           <button onClick={() => deleteInformativo(item.id)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fee2e2', color: '#991b1b', cursor: 'pointer' }}>Apagar</button>
                         </div>
@@ -977,12 +935,13 @@ export default function Admin() {
                     <div style={{ display: 'grid', gap: 10 }}>
                       <input value={editingInformativo.titulo} onChange={e => setEditingInformativo(prev => ({ ...prev, titulo: e.target.value }))} placeholder="Título" style={{ padding: 10, borderRadius: 6, border: '1px solid #e6e6e6' }} />
                       <textarea value={editingInformativo.conteudo} onChange={e => setEditingInformativo(prev => ({ ...prev, conteudo: e.target.value }))} placeholder="Conteúdo" style={{ padding: 10, borderRadius: 6, border: '1px solid #e6e6e6', minHeight: 100 }} />
-                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <input ref={editFileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleEditInformativoFileChange} />
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                         {editingInformativo.imagemDataUrl && <img src={editingInformativo.imagemDataUrl} alt="preview" style={{ width: 120, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #e6e6e6' }} />}
-                        <button onClick={() => fileInputRef.current && fileInputRef.current.click()} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer' }}>Alterar Fundo</button>
-                        <button onClick={() => setEditingInformativo(prev => ({ ...prev, imagemDataUrl: null }))} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fee2e2', color: '#991b1b', cursor: 'pointer' }}>Remover Fundo</button>
+                        <button onClick={() => editFileInputRef.current && editFileInputRef.current.click()} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer' }}>Alterar Foto</button>
+                        <button onClick={() => { setEditingInformativo(prev => ({ ...prev, imagemDataUrl: null })); setEditingInformativoImagemFile(null) }} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fee2e2', color: '#991b1b', cursor: 'pointer' }}>Remover Foto</button>
                       </div>
-                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                         <button onClick={() => setEditingInformativo(null)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff' }}>Cancelar</button>
                         <button onClick={handleSaveEditInformativo} style={{ padding: '8px 12px', borderRadius: 8, border: 'none', background: '#6b1515', color: '#fff' }}>Salvar</button>
                       </div>
@@ -993,26 +952,158 @@ export default function Admin() {
             </div>
           )}
 
-          {/* Escala publicada */}
+          {/* ---- Tutoriais Panel ---- */}
+          {viewMode === 'full' && showTutoriaisPanel && (
+            <div style={{ marginBottom: 16 }}>
+              <h3 style={{ marginTop: 0 }}>Adicionar Tutorial</h3>
+              <input ref={tutorialPdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }}
+                onChange={e => {
+                  const file = e.target.files && e.target.files[0]
+                  if (!file) return
+                  setTutorialPdfFile(file)
+                  setTutorialPdfNome(file.name)
+                  e.target.value = ''
+                }}
+              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
+                <input
+                  placeholder="Título do tutorial"
+                  value={tutorialTitulo}
+                  onChange={e => setTutorialTitulo(e.target.value)}
+                  style={{ padding: 10, borderRadius: 6, border: '1px solid #e6e6e6' }}
+                />
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => tutorialPdfInputRef.current && tutorialPdfInputRef.current.click()}
+                    style={{ background: '#f3f4f6', border: '1px solid #e6e6e6', padding: '8px 14px', borderRadius: 8, cursor: 'pointer' }}
+                  >
+                    📄 {tutorialPdfNome ? 'Trocar PDF' : 'Adicionar PDF'}
+                  </button>
+                  {tutorialPdfNome && (
+                    <span style={{ fontSize: 13, color: '#374151', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '4px 10px', borderRadius: 6 }}>
+                      {tutorialPdfNome}
+                    </span>
+                  )}
+                  {tutorialPdfNome && (
+                    <button onClick={() => { setTutorialPdfFile(null); setTutorialPdfNome('') }} style={{ background: '#fee2e2', border: '1px solid #fca5a5', padding: '6px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>Remover PDF</button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={handleAddTutorial} style={{ ...addBtnStyle, padding: '10px 14px' }}>Adicionar</button>
+                  <button onClick={() => { setTutorialTitulo(''); setTutorialPdfFile(null); setTutorialPdfNome(''); setShowTutoriaisPanel(false) }} style={{ background: '#e5e7eb', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer' }}>Cancelar</button>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 12 }}>
+                <h3 style={{ marginBottom: 8 }}>Tutoriais Publicados</h3>
+                {tutoriais.length === 0 ? (
+                  <div style={{ color: '#9ca3af' }}>Nenhum tutorial cadastrado.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {tutoriais.map(item => (
+                      <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', border: '1px solid #e6e6e6', borderRadius: 8, background: '#fff', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+                          <div style={{ width: 40, height: 40, borderRadius: 8, background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 20 }}>
+                            📄
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.titulo}</div>
+                            {item.pdf_url
+                              ? <a href={item.pdf_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#6b1515' }}>Ver PDF</a>
+                              : <span style={{ fontSize: 12, color: '#9ca3af' }}>Sem PDF</span>
+                            }
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                          <button
+                            onClick={() => { setEditingTutorial({ ...item }); setEditingTutorialPdfFile(null) }}
+                            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer' }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => deleteTutorial(item.id)}
+                            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fee2e2', color: '#991b1b', cursor: 'pointer' }}
+                          >
+                            Apagar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {editingTutorial && (
+                  <div style={{ marginTop: 16, padding: 14, border: '1px solid #e6e6e6', borderRadius: 8, background: '#fafafa' }}>
+                    <h4 style={{ marginTop: 0 }}>Editar Tutorial</h4>
+                    <input ref={editTutorialPdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }}
+                      onChange={e => {
+                        const file = e.target.files && e.target.files[0]
+                        if (!file) return
+                        setEditingTutorialPdfFile(file)
+                        setEditingTutorial(prev => ({ ...prev, pdf_nome: file.name }))
+                        e.target.value = ''
+                      }}
+                    />
+                    <div style={{ display: 'grid', gap: 10 }}>
+                      <input
+                        value={editingTutorial.titulo}
+                        onChange={e => setEditingTutorial(prev => ({ ...prev, titulo: e.target.value }))}
+                        placeholder="Título"
+                        style={{ padding: 10, borderRadius: 6, border: '1px solid #e6e6e6' }}
+                      />
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => editTutorialPdfInputRef.current && editTutorialPdfInputRef.current.click()}
+                          style={{ background: '#f3f4f6', border: '1px solid #e6e6e6', padding: '8px 14px', borderRadius: 8, cursor: 'pointer' }}
+                        >
+                          📄 Trocar PDF
+                        </button>
+                        {editingTutorialPdfFile && (
+                          <span style={{ fontSize: 13, color: '#374151', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '4px 10px', borderRadius: 6 }}>
+                            {editingTutorialPdfFile.name}
+                          </span>
+                        )}
+                        {!editingTutorialPdfFile && editingTutorial.pdf_url && (
+                          <a href={editingTutorial.pdf_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: '#6b1515' }}>PDF atual</a>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                        <button onClick={() => { setEditingTutorial(null); setEditingTutorialPdfFile(null) }} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff' }}>Cancelar</button>
+                        <button onClick={handleSaveEditTutorial} style={{ padding: '8px 12px', borderRadius: 8, border: 'none', background: '#6b1515', color: '#fff' }}>Salvar</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ---- Escala publicada ---- */}
           {viewMode === 'escala' && escalaMensal && (
             <div style={{ marginBottom: 14, padding: 12, background: '#fff', borderRadius: 6, border: '1px solid #e6e6e6' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                 <h3 style={{ margin: 0 }}>Escala do Mês — {escalaMensal.monthLabel}</h3>
                 <button onClick={() => deleteEscalaMensal(escalaMensal.id)} style={{ background: '#fee2e2', border: '1px solid #fca5a5', padding: '8px 12px', borderRadius: 8 }}>Remover Escala do Mês</button>
               </div>
               <div style={{ marginTop: 12 }}>
                 {Array.isArray(escalaMensal.data) && escalaMensal.data.map(dia => (
                   <div key={dia.data} style={{ padding: 12, background: '#fafafa', borderRadius: 6, border: '1px solid #f3f3f3', marginBottom: 8 }}>
-                    <strong style={{ display: 'block', marginBottom: 8 }}>{new Date(dia.data + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}</strong>
-                    <div style={{ display: 'flex', gap: 16 }}>
+                    <strong style={{ display: 'block', marginBottom: 8 }}>
+                      {new Date(dia.data + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
+                    </strong>
+                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                       {periodos.map(p => (
-                        <div key={p} style={{ flex: 1 }}>
+                        <div key={p} style={{ flex: 1, minWidth: 120 }}>
                           <div style={{ fontWeight: 700, color: '#7f1d1d', marginBottom: 6 }}>{p}</div>
-                          {dia.turnos && dia.turnos[p] ? Object.entries(dia.turnos[p]).map(([f, n]) => (
-                            <div key={f} style={{ fontSize: 13, padding: '8px', marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <div style={{ color: '#555' }}><span style={{ fontWeight: 600 }}>{f}:</span> <span style={{ marginLeft: 8, fontWeight: 700 }}>{n}</span></div>
-                            </div>
-                          )) : <div style={{ color: '#9ca3af' }}>Sem dados</div>}
+                          {dia.turnos && dia.turnos[p]
+                            ? Object.entries(dia.turnos[p]).map(([f, n]) => (
+                              <div key={f} style={{ fontSize: 13, padding: '8px', marginBottom: 6 }}>
+                                <span style={{ fontWeight: 600 }}>{f}:</span>
+                                <span style={{ marginLeft: 8, fontWeight: 700 }}>{n}</span>
+                              </div>
+                            ))
+                            : <div style={{ color: '#9ca3af' }}>Sem dados</div>}
                         </div>
                       ))}
                     </div>
@@ -1022,44 +1113,60 @@ export default function Admin() {
             </div>
           )}
 
-          {/* Sugestão de escala editável */}
+          {/* ---- Sugestão de escala ---- */}
           {viewMode === 'escala' && sugestaoEditada && (
             <div style={{ marginBottom: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                 <h3 style={{ margin: 0 }}>Sugestão de Escala</h3>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button onClick={() => handlePublishEscala(sugestaoEditada)} style={secondaryBtnStyle}>Publicar Agora</button>
-                  <button onClick={handleCompartilharEscala} style={{ background: '#25D366', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer' }}>
-                    📤 Compartilhar
-                  </button>
+                  <button onClick={() => setShowShareModal(true)} style={{ ...secondaryBtnStyle, background: '#1a6b3c' }}>Compartilhar</button>
                   <button onClick={() => setSugestaoEditada(null)} style={{ background: '#e5e7eb', border: 'none', padding: '8px 12px', borderRadius: 8 }}>Descartar</button>
                 </div>
               </div>
-
               <div style={{ marginTop: 12 }}>
                 {sugestaoEditada.map(dia => (
                   <div key={dia.data} style={{ padding: 12, background: '#fff', borderRadius: 6, border: '1px solid #f3f3f3', marginBottom: 10 }}>
-                    <strong style={{ display: 'block', marginBottom: 8 }}>{new Date(dia.data + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}</strong>
-                    <div style={{ display: 'flex', gap: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                      <strong>{new Date(dia.data + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}</strong>
+                      <button onClick={() => setEditingDay(dia)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #ddd' }}>Editar</button>
+                    </div>
+                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
                       {periodos.map(p => (
-                        <div key={p} style={{ flex: 1 }}>
+                        <div key={p} style={{ flex: 1, minWidth: 120 }}>
                           <div style={{ fontWeight: 700, color: '#7f1d1d', marginBottom: 6 }}>{p}</div>
                           {Object.entries(dia.turnos[p]).map(([f, n]) => {
                             const candidatos = membros.filter(m => Array.isArray(m.funcao) ? m.funcao.includes(f) : m.funcao === f)
                             const includesCurrent = candidatos.some(m => m.nome === n)
                             return (
-                              <div key={f} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                                <div style={{ width: 140 }}>{f}</div>
-                                <select value={n} onChange={e => trocarPessoaDaEscala(dia.data, p, f, e.target.value)} style={{ padding: 8, border: '1px solid #ddd', borderRadius: 6, flex: 1 }}>
+                              <div key={f} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+                                <div style={{ width: 120, fontSize: 13 }}>{f}</div>
+                                <select
+                                  value={n}
+                                  onChange={e => {
+                                    const novo = sugestaoEditada.map(sd =>
+                                      sd.data === dia.data
+                                        ? { ...sd, turnos: { ...sd.turnos, [p]: { ...sd.turnos[p], [f]: e.target.value } } }
+                                        : sd
+                                    )
+                                    setSugestaoEditada(novo)
+                                  }}
+                                  style={{ padding: 8, border: '1px solid #ddd', borderRadius: 6, flex: 1, minWidth: 100 }}
+                                >
                                   <option value="Vago">Vago</option>
                                   {candidatos.map(mem => <option key={mem.id} value={mem.nome}>{mem.nome}</option>)}
                                   {!includesCurrent && n !== 'Vago' && <option value={n}>{n} (atual)</option>}
                                 </select>
-                                <button onClick={() => {
-                                  const novoDia = { ...dia, turnos: { ...dia.turnos, [p]: { ...dia.turnos[p] } } }
-                                  delete novoDia.turnos[p][f]
-                                  setSugestaoEditada(prev => prev.map(sd => sd.data === dia.data ? novoDia : sd))
-                                }} style={{ padding: '6px 8px', borderRadius: 6, background: '#fee2e2', border: '1px solid #fca5a5' }}>Remover Função</button>
+                                <button
+                                  onClick={() => {
+                                    const novoDia = { ...dia, turnos: { ...dia.turnos, [p]: { ...dia.turnos[p] } } }
+                                    delete novoDia.turnos[p][f]
+                                    setSugestaoEditada(sugestaoEditada.map(sd => sd.data === dia.data ? novoDia : sd))
+                                  }}
+                                  style={{ padding: '6px 8px', borderRadius: 6, background: '#fee2e2', border: '1px solid #fca5a5', fontSize: 12 }}
+                                >
+                                  Remover
+                                </button>
                               </div>
                             )
                           })}
@@ -1072,26 +1179,79 @@ export default function Admin() {
             </div>
           )}
 
-          {/* Restrições */}
+          {/* ---- Restrições ---- */}
           {viewMode === 'escala' && (
             <div>
               <h4 style={{ marginTop: 0 }}>Restrições do Mês</h4>
-              {restricoes.length === 0 ? (
-                <p style={{ color: '#9ca3af' }}>Nenhuma restrição.</p>
-              ) : restricoes.map(r => (
-                <div key={r.id} style={{ padding: '10px 0', borderBottom: '1px solid #f0f0f0', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <strong>{r.responsavel}</strong> — {r.data}
-                    <span style={{ marginLeft: 6, color: '#6b7280' }}>({getPeriodosDaRestricao(r.periodo).join(', ')})</span>
+              {restricoes.length === 0
+                ? <p style={{ color: '#9ca3af' }}>Nenhuma restrição.</p>
+                : restricoes.map(r => (
+                  <div key={r.id} style={{ padding: '10px 0', borderBottom: '1px solid #f0f0f0', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                    <div><strong>{r.responsavel}</strong> - {r.data} ({Array.isArray(r.periodo) ? r.periodo.join(', ') : r.periodo})</div>
+                    <button onClick={() => deleteRestricao(r.id)} style={{ background: '#fee2e2', border: '1px solid #fca5a5', padding: '6px 10px', borderRadius: 8 }}>Remover</button>
                   </div>
-                  <button onClick={() => deleteRestricao(r.id)} style={{ background: '#fee2e2', border: '1px solid #fca5a5', padding: '6px 10px', borderRadius: 8 }}>Remover</button>
-                </div>
-              ))}
+                ))
+              }
             </div>
           )}
 
         </div>
       </div>
+
+      {/* ---- Modal Compartilhar ---- */}
+      {showShareModal && sugestaoEditada && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 20, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h3 style={{ margin: 0 }}>Compartilhar Escala</h3>
+              <button onClick={() => setShowShareModal(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer' }}>×</button>
+            </div>
+            <input ref={shareBgInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleShareBgChange} />
+            <button onClick={() => shareBgInputRef.current && shareBgInputRef.current.click()} style={{ background: '#f3f4f6', border: '1px solid #e6e6e6', padding: '8px 14px', borderRadius: 8, marginBottom: 14, cursor: 'pointer', width: '100%' }}>
+              {shareBgImage ? 'Trocar imagem de fundo' : 'Escolher imagem de fundo'}
+            </button>
+            <div ref={shareCardRef} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', backgroundColor: shareBgImage ? 'transparent' : '#f5f0e8', padding: '20px 18px', minHeight: 300 }}>
+              {shareBgImage && (
+                <img src={shareBgImage} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10, zIndex: 0 }} />
+              )}
+              {shareBgImage && (
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.82)', borderRadius: 10, zIndex: 1 }} />
+              )}
+              <div style={{ position: 'relative', zIndex: 2 }}>
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <span style={{ fontSize: 20, fontWeight: 900, color: '#1a2a5e' }}>
+                    ESCALA —{' '}
+                    {sugestaoEditada[0] && new Date(sugestaoEditada[0].data + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}
+                  </span>
+                </div>
+                {sugestaoEditada.map(dia => (
+                  <div key={dia.data} style={{ background: 'rgba(255,255,255,0.88)', borderRadius: 8, padding: '10px 14px', marginBottom: 10, borderLeft: '4px solid #e8a020' }}>
+                    <div style={{ fontWeight: 800, fontSize: 14, color: '#1a2a5e', marginBottom: 8 }}>
+                      {new Date(dia.data + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      {periodos.map(p => (
+                        <div key={p} style={{ flex: 1, minWidth: 100 }}>
+                          <div style={{ fontWeight: 700, color: '#1a2a5e', fontSize: 12, marginBottom: 4, borderBottom: '1px solid #e8a020', paddingBottom: 2 }}>{p}</div>
+                          {Object.entries(dia.turnos[p] || {}).map(([f, n]) => (
+                            <div key={f} style={{ fontSize: 12, color: '#222', lineHeight: 1.8 }}>
+                              <span style={{ fontWeight: 700, color: '#1a2a5e' }}>{f}:</span> {n}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+              <button onClick={handleGenerateShareImage} style={{ ...secondaryBtnStyle, flex: 1 }}>Baixar Imagem</button>
+              <button onClick={() => setShowShareModal(false)} style={{ background: '#e5e7eb', border: 'none', padding: '8px 14px', borderRadius: 8, flex: 1, cursor: 'pointer' }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,218 +1,394 @@
 // src/pages/Informativos.jsx
-import React, { useEffect, useState, useCallback } from 'react'
-
-function safeParseList(raw) {
-  try {
-    const parsed = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? parsed : []
-  } catch (e) {
-    return []
-  }
-}
-
-function ensureFields(item) {
-  return {
-    id: item.id ?? Date.now(),
-    titulo: item.titulo ?? 'Sem título',
-    conteudo: item.conteudo ?? '',
-    imagemDataUrl: item.imagemDataUrl ?? null,
-    pinned: !!item.pinned,
-    createdAt: item.createdAt ?? new Date().toISOString(),
-  }
-}
-
-function loadInformativosFromStorage() {
-  const raw = localStorage.getItem('informativos_ibr')
-  const list = safeParseList(raw).map(i => ensureFields(i))
-  // Ordena: os fixados aparecem no topo da lista
-  list.sort((a, b) => {
-    if (a.pinned && !b.pinned) return -1
-    if (!a.pinned && b.pinned) return 1
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  })
-  return list
-}
-
-function formatDate(dtStr) {
-  try {
-    const d = new Date(dtStr)
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
-  } catch { return '' }
-}
+import React, { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabaseClient'
 
 export default function Informativos() {
-  const [items, setItems] = useState([])
-  const [opened, setOpened] = useState(null) // item aberto no modal
+  const [informativos, setInformativos] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [informativoSelecionado, setInformativoSelecionado] = useState(null)
 
-  const reload = useCallback(() => {
-    setItems(loadInformativosFromStorage())
+  useEffect(() => {
+    fetchInformativos()
   }, [])
 
   useEffect(() => {
-    reload()
-    function onStorage(e) {
-      if (!e.key || e.key === 'informativos_ibr') reload()
+    function fecharComEsc(event) {
+      if (event.key === 'Escape') {
+        setInformativoSelecionado(null)
+      }
     }
-    window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
-  }, [reload])
 
-  useEffect(() => {
-    function onKey(e) {
-      if (e.key === 'Escape') setOpened(null)
+    document.addEventListener('keydown', fecharComEsc)
+
+    return () => {
+      document.removeEventListener('keydown', fecharComEsc)
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  async function fetchInformativos() {
+    try {
+      setLoading(true)
+
+      const { data, error } = await supabase
+        .from('informativos')
+        .select('id, titulo, conteudo, imagem_url, fixado, created_at')
+        .order('fixado', { ascending: false })
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      setInformativos(data || [])
+    } catch (error) {
+      console.error('Erro ao buscar informativos:', error)
+
+      const local = JSON.parse(
+        localStorage.getItem('informativos_ibr') || '[]'
+      )
+
+      const informativosOrdenados = [...local].sort((a, b) => {
+        if (Boolean(a.fixado) !== Boolean(b.fixado)) {
+          return a.fixado ? -1 : 1
+        }
+
+        return 0
+      })
+
+      setInformativos(informativosOrdenados)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function fecharInformativo() {
+    setInformativoSelecionado(null)
+  }
+
+  function formatarData(data) {
+    if (!data) return ''
+
+    return new Date(data).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    })
+  }
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          padding: 40,
+          textAlign: 'center',
+          color: '#666'
+        }}
+      >
+        Carregando informativos...
+      </div>
+    )
+  }
 
   return (
-    <div style={{ background: '#fafafa', minHeight: '100vh', padding: '28px 16px' }}>
+    <div
+      style={{
+        background: '#f7f6f5',
+        minHeight: '100vh',
+        padding: '40px 20px 80px'
+      }}
+    >
       <div style={{ maxWidth: 800, margin: '0 auto' }}>
-        
-        <h2 style={{ margin: '0 0 20px', fontSize: 22, fontWeight: '700', color: '#1a1a1a' }}>
+        <h2
+          style={{
+            fontSize: 28,
+            fontWeight: 800,
+            color: '#1a1a1a',
+            margin: '0 0 30px',
+            textAlign: 'center'
+          }}
+        >
           Informativos
         </h2>
 
-        {items.length === 0 ? (
-          <div style={{ padding: 20, textAlign: 'center', background: '#fff', borderRadius: 12, color: '#9ca3af', border: '1px solid #eee' }}>
+        {informativos.length === 0 ? (
+          <p
+            style={{
+              textAlign: 'center',
+              color: '#999'
+            }}
+          >
             Nenhum informativo publicado no momento.
-          </div>
+          </p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {items.map(item => (
-              <article 
-                key={item.id} 
-                onClick={() => setOpened(item)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === 'Enter') setOpened(item) }}
-                style={{ 
-                  display: 'flex', 
-                  gap: 16, 
-                  padding: 16, 
-                  background: '#fff', 
-                  borderRadius: 12, 
-                  border: item.pinned ? '2px solid #fde68a' : '1px solid #efefef',
-                  boxShadow: item.pinned ? '0 4px 15px rgba(0,0,0,0.05)' : '0 2px 4px rgba(0,0,0,0.02)',
-                  position: 'relative',
-                  cursor: 'pointer'
-                }}
-              >
-                {/* Imagem com proporção controlada */}
-                <div style={{ 
-                  width: 140, 
-                  height: 100, 
-                  borderRadius: 8, 
-                  overflow: 'hidden', 
-                  background: '#f3f3f3', 
-                  flexShrink: 0 
-                }}>
-                  {item.imagemDataUrl ? (
-                    <img src={item.imagemDataUrl} alt={item.titulo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: 12 }}>
-                      sem foto
+          <div style={{ display: 'grid', gap: 24 }}>
+            {informativos.map((item) => {
+              const imagem = item.imagem_url || item.imagemDataUrl
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setInformativoSelecionado(item)}
+                  style={{
+                    width: '100%',
+                    padding: 0,
+                    textAlign: 'left',
+                    background: '#fff',
+                    borderRadius: 16,
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    border: item.fixado
+                      ? '2px solid #6b1515'
+                      : '1px solid #eeeeee',
+                    boxShadow: item.fixado
+                      ? '0 10px 30px rgba(107, 21, 21, 0.12)'
+                      : '0 4px 15px rgba(0,0,0,0.05)',
+                    position: 'relative',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                  }}
+                  onMouseEnter={(event) => {
+                    event.currentTarget.style.transform = 'translateY(-3px)'
+                    event.currentTarget.style.boxShadow =
+                      '0 12px 28px rgba(0,0,0,0.12)'
+                  }}
+                  onMouseLeave={(event) => {
+                    event.currentTarget.style.transform = 'translateY(0)'
+                    event.currentTarget.style.boxShadow = item.fixado
+                      ? '0 10px 30px rgba(107, 21, 21, 0.12)'
+                      : '0 4px 15px rgba(0,0,0,0.05)'
+                  }}
+                >
+                  {item.fixado && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 12,
+                        left: 12,
+                        background: '#6b1515',
+                        color: '#fff',
+                        padding: '5px 12px',
+                        borderRadius: 20,
+                        fontSize: 11,
+                        fontWeight: 900,
+                        letterSpacing: 1,
+                        zIndex: 2,
+                        boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
+                      }}
+                    >
+                      IMPORTANTE
                     </div>
                   )}
-                </div>
 
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <h3 style={{ margin: '0 0 6px', fontSize: 18, color: '#111', fontWeight: '700' }}>
-                        {item.titulo}
-                      </h3>
-                      {item.pinned && (
-                        <span style={{ 
-                          background: '#fde68a', 
-                          color: '#92400e', 
-                          fontSize: 10, 
-                          fontWeight: '800', 
-                          padding: '2px 8px', 
-                          borderRadius: 6,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.5px'
-                        }}>
-                          Fixado
-                        </span>
-                      )}
+                  {imagem && (
+                    <div
+                      style={{
+                        width: '100%',
+                        height: 240,
+                        overflow: 'hidden',
+                        background: '#f3f4f6'
+                      }}
+                    >
+                      <img
+                        src={imagem}
+                        alt={item.titulo}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          display: 'block'
+                        }}
+                      />
                     </div>
+                  )}
+
+                  <div style={{ padding: 24 }}>
+                    <h3
+                      style={{
+                        margin: '0 0 10px',
+                        fontSize: 20,
+                        color: item.fixado ? '#6b1515' : '#1a1a1a',
+                        fontWeight: 800
+                      }}
+                    >
+                      {item.titulo}
+                    </h3>
+
                     {item.conteudo && (
-                      <p style={{ 
-                        margin: 0, 
-                        color: '#4b5563', 
-                        fontSize: 14, 
-                        lineHeight: '1.5',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
-                      }}>
+                      <p
+                        style={{
+                          margin: 0,
+                          color: '#555',
+                          lineHeight: 1.6,
+                          fontSize: 15,
+                          whiteSpace: 'pre-wrap',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden'
+                        }}
+                      >
                         {item.conteudo}
                       </p>
                     )}
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 12,
+                        marginTop: 18
+                      }}
+                    >
+                      <span style={{ color: '#999', fontSize: 12 }}>
+                        {formatarData(item.created_at)}
+                      </span>
+
+                      <span
+                        style={{
+                          color: '#6b1515',
+                          fontWeight: 800,
+                          fontSize: 13
+                        }}
+                      >
+                        Ler mais →
+                      </span>
+                    </div>
                   </div>
-                  
-                  <div style={{ marginTop: 8, color: '#9ca3af', fontSize: 12, fontWeight: '500' }}>
-                    {formatDate(item.createdAt)}
-                  </div>
-                </div>
-              </article>
-            ))}
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
 
-      {/* Modal full-screen */}
-      {opened && (
-        <div 
-          onClick={() => setOpened(null)} 
+      {/* Tela cheia do informativo */}
+      {informativoSelecionado && (
+        <div
+          onClick={fecharInformativo}
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: 20
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0, 0, 0, 0.78)',
+            padding: 16,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center'
           }}
         >
-          <div 
-            onClick={(e) => e.stopPropagation()} 
-            role="dialog"
-            aria-modal="true"
+          <div
+            onClick={(event) => event.stopPropagation()}
             style={{
-              width: 'min(1100px, 96%)',
-              maxHeight: '90vh',
-              overflow: 'auto',
+              width: '100%',
+              maxWidth: 950,
+              height: '100%',
+              maxHeight: '95vh',
               background: '#fff',
-              borderRadius: 12,
-              padding: 20,
-              boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
-              position: 'relative'
+              borderRadius: 16,
+              overflowY: 'auto',
+              position: 'relative',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.35)'
             }}
           >
-            <button 
-              onClick={() => setOpened(null)}
-              aria-label="Fechar"
+            <button
+              type="button"
+              onClick={fecharInformativo}
               style={{
-                position: 'absolute',
-                top: 12,
-                right: 12,
-                background: '#fff',
-                border: '1px solid #e5e7eb',
-                padding: '6px 10px',
+                position: 'sticky',
+                top: 14,
+                float: 'right',
+                margin: '14px 14px 0 0',
+                zIndex: 5,
+                background: '#6b1515',
+                color: '#fff',
+                border: 'none',
                 borderRadius: 8,
-                cursor: 'pointer'
+                padding: '10px 14px',
+                cursor: 'pointer',
+                fontWeight: 800,
+                boxShadow: '0 3px 10px rgba(0,0,0,0.2)'
               }}
             >
-              Fechar
+              × Fechar
             </button>
 
-            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexDirection: 'column' }}>
-              {opened.imagemDataUrl && (
-                <div style={{ width: '100%', borderRadius: 8, overflow: 'hidden', background: '#f3f3f3' }}>
-                  <img src={opened.imagemDataUrl} alt={opened.titulo} style={{ width: '100%', height: 'auto', display: 'block' }} />
-                </div>
+            {informativoSelecionado.fixado && (
+              <div
+                style={{
+                  display: 'inline-block',
+                  margin: '24px 24px 0',
+                  background: '#6b1515',
+                  color: '#fff',
+                  padding: '6px 14px',
+                  borderRadius: 20,
+                  fontSize: 12,
+                  fontWeight: 900,
+                  letterSpacing: 1
+                }}
+              >
+                IMPORTANTE
+              </div>
+            )}
+
+            {(informativoSelecionado.imagem_url ||
+              informativoSelecionado.imagemDataUrl) && (
+              <img
+                src={
+                  informativoSelecionado.imagem_url ||
+                  informativoSelecionado.imagemDataUrl
+                }
+                alt={informativoSelecionado.titulo}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  maxHeight: '65vh',
+                  objectFit: 'contain',
+                  background: '#111',
+                  marginTop: informativoSelecionado.fixado ? 16 : 0
+                }}
+              />
+            )}
+
+            <div
+              style={{
+                padding: '28px 24px 40px',
+                clear: 'both'
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                  color: informativoSelecionado.fixado
+                    ? '#6b1515'
+                    : '#1a1a1a',
+                  fontSize: 28,
+                  lineHeight: 1.25,
+                  fontWeight: 900
+                }}
+              >
+                {informativoSelecionado.titulo}
+              </h2>
+
+              {informativoSelecionado.created_at && (
+                <p
+                  style={{
+                    margin: '10px 0 24px',
+                    color: '#888',
+                    fontSize: 13
+                  }}
+                >
+                  Publicado em {formatarData(informativoSelecionado.created_at)}
+                </p>
               )}
-              <div>
-                <h2 style={{ margin: '8px 0 12px', fontSize: 24 }}>{opened.titulo}</h2>
-                <div style={{ color: '#9ca3af', marginBottom: 12 }}>{formatDate(opened.createdAt)}</div>
-                {opened.conteudo && <div style={{ color: '#374151', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{opened.conteudo}</div>}
+
+              <div
+                style={{
+                  color: '#333',
+                  fontSize: 17,
+                  lineHeight: 1.8,
+                  whiteSpace: 'pre-wrap'
+                }}
+              >
+                {informativoSelecionado.conteudo}
               </div>
             </div>
           </div>

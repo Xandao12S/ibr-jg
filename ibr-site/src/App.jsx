@@ -82,7 +82,6 @@ if (user && (user.role === 'admin')) {
           />
           <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 700, color: '#7f1d1d', fontSize: 16, lineHeight: 1 }}>{/* título truncável */}
-              <span style={{ display: 'inline-block', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>IBR</span>
             </div>
             <div style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Jardim Guarujá</div>
           </div>

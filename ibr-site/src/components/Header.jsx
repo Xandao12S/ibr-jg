@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import './Header.css';
 
-export default function Header({ siteName = 'IBR Jardim Guarujá' }) {
+export default function Header({ siteName = 'Jardim Guarujá' }) {
   const [open, setOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -60,7 +60,6 @@ export default function Header({ siteName = 'IBR Jardim Guarujá' }) {
         <div className="logo">
           <img src="/ibr.jpg" alt="IBR" />
           <div className="brand">
-            <div className="brand-title">IBR</div>
             <div className="brand-sub">Jardim Guarujá</div>
           </div>
         </div>
