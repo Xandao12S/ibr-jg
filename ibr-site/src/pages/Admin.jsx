@@ -49,6 +49,14 @@ function monthLabelFromDateStr(dStr) {
     return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
   } catch { return '' }
 }
+// novo helper: converte "YYYY-MM" => "julho de 2026"
+function monthLabelFromYYYYMM(yyyyMm) {
+  if (!yyyyMm) return ''
+  const [y, m] = String(yyyyMm).split('-').map(Number)
+  if (!y || !m) return ''
+  const d = new Date(y, m - 1, 1)
+  return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+}
 function getPeriodosDaRestricao(periodo) {
   if (!periodo) return []
   if (Array.isArray(periodo)) return periodo.map(normalizePeriod)
@@ -138,6 +146,12 @@ export default function Admin() {
   const [shareBgImage, setShareBgImage] = useState(null)
   const shareCardRef = useRef(null)
   const shareBgInputRef = useRef(null)
+
+  // novo estado: mês de referência para publicação (formato "YYYY-MM")
+  const [publishMonth, setPublishMonth] = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })
 
   const containerStyle = { background: '#f7f6f5', minHeight: '100vh', padding: '40px 20px', paddingBottom: '100px' }
   const cardStyle = { background: '#fff', borderRadius: 8, boxShadow: '0 6px 20px rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.04)', padding: 18 }
@@ -562,75 +576,53 @@ export default function Admin() {
     e.target.value = ''
   }
 
-  const handleAddInformativo = async () => {
-    const titulo = informativoTitulo.trim()
-    if (!titulo) { alert('Digite um título para o informativo.'); return }
-    try {
-      let imagem_url = null
-      if (informativoImagemFile) imagem_url = await uploadImagemInformativo(informativoImagemFile)
-      await addInformativo({ titulo, conteudo: informativoConteudo.trim(), imagem_url })
-      setInformativoTitulo('')
-      setInformativoConteudo('')
-      setInformativoImagem(null)
-      setInformativoImagemFile(null)
-      setShowInformativosPanel(false)
-    } catch (error) { alert(`Não foi possível salvar a imagem do informativo: ${error.message}`) }
-  }
-
-  const handleStartEditInformativo = (item) => {
-    setEditingInformativo({ ...item })
-    setEditingInformativoImagemFile(null)
-  }
-
-  const handleSaveEditInformativo = async () => {
-    if (!editingInformativo) return
-    const titulo = editingInformativo.titulo?.trim()
-    if (!titulo) { alert('Digite um título para o informativo.'); return }
-    try {
-      let imagem_url = editingInformativo.imagemDataUrl || null
-      if (editingInformativoImagemFile) imagem_url = await uploadImagemInformativo(editingInformativoImagemFile)
-      await updateInformativo(editingInformativo.id, { titulo, conteudo: editingInformativo.conteudo?.trim() || '', imagem_url })
-      setEditingInformativo(null)
-      setEditingInformativoImagemFile(null)
-    } catch (error) { alert(`Não foi possível atualizar a imagem: ${error.message}`) }
-  }
-
   function gerarEscalaAutomatica() {
-    const hoje = new Date()
+    // usa publishMonth (formato "YYYY-MM") se estiver definido; senão usa mês atual
+    let baseDate = null
+    if (publishMonth && /^\d{4}-\d{2}$/.test(publishMonth)) {
+      const [y, m] = publishMonth.split('-').map(Number)
+      baseDate = new Date(y, m - 1, 1, 12, 0, 0)
+    } else {
+      const hoje = new Date()
+      baseDate = new Date(hoje.getFullYear(), hoje.getMonth(), 1, 12, 0, 0)
+    }
+
     const domingos = []
-    const d = new Date(hoje.getFullYear(), hoje.getMonth(), 1, 12, 0, 0)
-    while (d.getMonth() === hoje.getMonth()) {
+    const d = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1, 12, 0, 0)
+    while (d.getMonth() === baseDate.getMonth()) {
       if (d.getDay() === 0) domingos.push(dateToYMD(d))
       d.setDate(d.getDate() + 1)
     }
+
     const funcoesEscala = ['Som', 'OBS', 'Holyrics', 'Foto', 'Redes Sociais']
     const escala = domingos.map(dataRaw => {
       const dataDomingo = normalizeDateStr(dataRaw)
       const turnos = {}
+      const assignedKeys = new Set()
       periodos.forEach(periodoAtual => {
         const alocados = {}
-        const assignedKeys = new Set()
         funcoesEscala.forEach(funcao => {
+          // define se esta funcao deve respeitar restricao (somente Holyrics e OBS)
+          const isRestrictedRole = ['holyrics', 'obs'].includes(String(funcao).toLowerCase())
+
           const candidatos = membros.filter(membro => {
             const temFuncao = Array.isArray(membro.funcao) ? membro.funcao.includes(funcao) : membro.funcao === funcao
             if (!temFuncao || assignedKeys.has(membro.id)) return false
-            const temRestricao = restricoes.some(restricao => {
-              const mesmaPessoa = String(restricao.member_id || '') === String(membro.id || '') || namesMatch(membro.nome, restricao.responsavel)
-              if (!mesmaPessoa) return false
-              const dataRestricao = normalizeDateStr(restricao.data)
-              const periodosRestricao = getPeriodosDaRestricao(restricao.periodo)
-              const bloqueioNoDia = dataRestricao === dataDomingo && periodosRestricao.includes(periodoAtual)
-              const dataDaRestricao = parseYMDLocal(dataRestricao)
-              let bloqueioPorSabado = false
-              if (dataDaRestricao && dataDaRestricao.getDay() === 6) {
-                const diaSeguinte = new Date(dataDaRestricao)
-                diaSeguinte.setDate(diaSeguinte.getDate() + 1)
-                if (dateToYMD(diaSeguinte) === dataDomingo && periodosRestricao.includes(periodoAtual)) bloqueioPorSabado = true
-              }
-              return bloqueioNoDia || bloqueioPorSabado
+
+            // verifica restricao para este membro nesta data/periodo
+            const temRestricao = pessoaTemRestricaoNoPeriodo({
+              nomePessoa: membro.nome,
+              dataEscala: dataDomingo,
+              periodoEscala: periodoAtual,
+              membros,
+              restricoes
             })
-            return !temRestricao
+
+            // para funções restritas, exclui quem tem restrição; para as outras, permite mesmo com restrição
+            if (isRestrictedRole && temRestricao) return false
+            return true
           })
+
           const escolhido = candidatos.length ? candidatos[Math.floor(Math.random() * candidatos.length)] : null
           if (escolhido) { alocados[funcao] = escolhido.nome; assignedKeys.add(escolhido.id) }
           else alocados[funcao] = 'Vago'
@@ -639,12 +631,16 @@ export default function Admin() {
       })
       return { data: dataRaw, turnos }
     })
+
     setSugestaoEditada(escala)
   }
 
+  // handlePublishEscala agora utiliza publishMonth (se fornecido)
   const handlePublishEscala = async (escalaArr) => {
     if (!Array.isArray(escalaArr) || escalaArr.length === 0) return
-    const monthLabel = monthLabelFromDateStr(escalaArr[0].data) || new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+    // usar label a partir do selector publishMonth; se não existir, fallback para data do primeiro dia
+    const monthLabelFromSelector = monthLabelFromYYYYMM(publishMonth)
+    const monthLabel = monthLabelFromSelector || monthLabelFromDateStr(escalaArr[0].data) || new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
     await publishEscalaMensal({ monthLabel, data: escalaArr })
     setSugestaoEditada(null)
   }
@@ -679,6 +675,21 @@ export default function Admin() {
 
   useEffect(() => { setChecked(true) }, [])
   useEffect(() => { fetchAll() }, [fetchAll])
+
+  // sincroniza publishMonth automaticamente quando a sugestão de escala for carregada
+  useEffect(() => {
+    if (!sugestaoEditada || !Array.isArray(sugestaoEditada) || sugestaoEditada.length === 0) return
+    try {
+      const primeiro = sugestaoEditada[0].data
+      const parsed = new Date(primeiro + 'T00:00:00')
+      if (!isNaN(parsed.getTime())) {
+        setPublishMonth(`${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}`)
+      }
+    } catch (e) {
+      // silencioso — não interrompe a UI
+    }
+  }, [sugestaoEditada])
+
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpenFuncoes(false)
@@ -740,7 +751,7 @@ export default function Admin() {
                     {funcoesSelecionadas.length ? funcoesSelecionadas.join(', ') : 'Selecione as funções...'}
                   </div>
                   {isOpenFuncoes && (
-                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e6e6e6', borderRadius: 6, zIndex: 10, padding: 10, boxShadow: '0 6px 18px rgba(0,0,0,0.06)', marginTop: 6 }}>
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e6e9ee', borderRadius: 6, zIndex: 10, padding: 10, boxShadow: '0 6px 18px rgba(0,0,0,0.06)', marginTop: 6 }}>
                       {funcoesOpcoes.map(f => (
                         <label key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 4px', cursor: 'pointer' }}>
                           <input type="checkbox" checked={funcoesSelecionadas.includes(f)} onChange={() => toggleFuncao(f)} />
@@ -889,74 +900,6 @@ export default function Admin() {
             </div>
           )}
 
-          {/* ---- Tutoriais Panel ---- */}
-          {viewMode === 'full' && showTutoriaisPanel && (
-            <div style={{ marginBottom: 16 }}>
-              <h3 style={{ marginTop: 0 }}>Adicionar Tutorial</h3>
-              <input ref={tutorialPdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }}
-                onChange={e => { const file = e.target.files && e.target.files[0]; if (!file) return; setTutorialPdfFile(file); setTutorialPdfNome(file.name); e.target.value = '' }}
-              />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
-                <input placeholder="Título do tutorial" value={tutorialTitulo} onChange={e => setTutorialTitulo(e.target.value)} style={{ padding: 10, borderRadius: 6, border: '1px solid #e6e6e6' }} />
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <button onClick={() => tutorialPdfInputRef.current && tutorialPdfInputRef.current.click()} style={{ background: '#f3f4f6', border: '1px solid #e6e6e6', padding: '8px 14px', borderRadius: 8, cursor: 'pointer' }}>
-                    📄 {tutorialPdfNome ? 'Trocar PDF' : 'Adicionar PDF'}
-                  </button>
-                  {tutorialPdfNome && <span style={{ fontSize: 13, color: '#374151', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '4px 10px', borderRadius: 6 }}>{tutorialPdfNome}</span>}
-                  {tutorialPdfNome && <button onClick={() => { setTutorialPdfFile(null); setTutorialPdfNome('') }} style={{ background: '#fee2e2', border: '1px solid #fca5a5', padding: '6px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>Remover PDF</button>}
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={handleAddTutorial} style={{ ...addBtnStyle, padding: '10px 14px' }}>Adicionar</button>
-                  <button onClick={() => { setTutorialTitulo(''); setTutorialPdfFile(null); setTutorialPdfNome(''); setShowTutoriaisPanel(false) }} style={{ background: '#e5e7eb', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer' }}>Cancelar</button>
-                </div>
-              </div>
-              <div style={{ marginTop: 12 }}>
-                <h3 style={{ marginBottom: 8 }}>Tutoriais Publicados</h3>
-                {tutoriais.length === 0 ? (
-                  <div style={{ color: '#9ca3af' }}>Nenhum tutorial cadastrado.</div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {tutoriais.map(item => (
-                      <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', border: '1px solid #e6e6e6', borderRadius: 8, background: '#fff', gap: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-                          <div style={{ width: 40, height: 40, borderRadius: 8, background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 20 }}>📄</div>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontWeight: 700, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.titulo}</div>
-                            {item.pdf_url ? <a href={item.pdf_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#6b1515' }}>Ver PDF</a> : <span style={{ fontSize: 12, color: '#9ca3af' }}>Sem PDF</span>}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                          <button onClick={() => { setEditingTutorial({ ...item }); setEditingTutorialPdfFile(null) }} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer' }}>Editar</button>
-                          <button onClick={() => deleteTutorial(item.id)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fee2e2', color: '#991b1b', cursor: 'pointer' }}>Apagar</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {editingTutorial && (
-                  <div style={{ marginTop: 16, padding: 14, border: '1px solid #e6e6e6', borderRadius: 8, background: '#fafafa' }}>
-                    <h4 style={{ marginTop: 0 }}>Editar Tutorial</h4>
-                    <input ref={editTutorialPdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }}
-                      onChange={e => { const file = e.target.files && e.target.files[0]; if (!file) return; setEditingTutorialPdfFile(file); setEditingTutorial(prev => ({ ...prev, pdf_nome: file.name })); e.target.value = '' }}
-                    />
-                    <div style={{ display: 'grid', gap: 10 }}>
-                      <input value={editingTutorial.titulo} onChange={e => setEditingTutorial(prev => ({ ...prev, titulo: e.target.value }))} placeholder="Título" style={{ padding: 10, borderRadius: 6, border: '1px solid #e6e6e6' }} />
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <button onClick={() => editTutorialPdfInputRef.current && editTutorialPdfInputRef.current.click()} style={{ background: '#f3f4f6', border: '1px solid #e6e6e6', padding: '8px 14px', borderRadius: 8, cursor: 'pointer' }}>📄 Trocar PDF</button>
-                        {editingTutorialPdfFile && <span style={{ fontSize: 13, color: '#374151', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '4px 10px', borderRadius: 6 }}>{editingTutorialPdfFile.name}</span>}
-                        {!editingTutorialPdfFile && editingTutorial.pdf_url && <a href={editingTutorial.pdf_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: '#6b1515' }}>PDF atual</a>}
-                      </div>
-                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                        <button onClick={() => { setEditingTutorial(null); setEditingTutorialPdfFile(null) }} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff' }}>Cancelar</button>
-                        <button onClick={handleSaveEditTutorial} style={{ padding: '8px 12px', borderRadius: 8, border: 'none', background: '#6b1515', color: '#fff' }}>Salvar</button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* ---- ✅ ESCALA PUBLICADA — novo estilo ---- */}
           {viewMode === 'escala' && escalaMensal && (
             <div style={{ marginBottom: 14 }}>
@@ -999,7 +942,7 @@ export default function Admin() {
                                 <span style={{ fontWeight: 700, color: '#374151', minWidth: 90 }}>{f}:</span>
                                 <span style={{ color: '#111', fontWeight: 500 }}>{n}</span>
                                 {/* ✅ BOTÃO SÁBADO */}
-                                {(f === 'Som' || f === 'Holyrics') && n && n !== 'Vago' && p === 'Noite' && (
+                                {(f === 'Som' || f === 'Holyrics') && p === 'Noite' && (
                                   <button
                                     onClick={() => alert('Você deverá ir ao ensaio no sábado as 09:00, por favor.')}
                                     style={{ marginLeft: 4, padding: '2px 8px', borderRadius: 6, background: '#7f1d1d', color: '#fff', border: 'none', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}
@@ -1025,12 +968,43 @@ export default function Admin() {
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                 <h3 style={{ margin: 0 }}>Sugestão de Escala</h3>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+
+                {/* --- AQUI: substituímos somente este bloco para incluir selector de mês ao lado do botão Publicar --- */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <label htmlFor="publish-month" style={{ fontSize: 13, color: '#374151', fontWeight: 700 }}>Mês referência</label>
+                  <input
+                    id="publish-month"
+                    type="month"
+                    value={publishMonth}
+                    onChange={(e) => setPublishMonth(e.target.value)}
+                    style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #e6e9ee', background: '#fff', color: '#111827' }}
+                  />
+
                   <button onClick={() => handlePublishEscala(sugestaoEditada)} style={secondaryBtnStyle}>Publicar Agora</button>
+
                   <button onClick={() => setShowShareModal(true)} style={{ ...secondaryBtnStyle, background: '#1a6b3c' }}>Compartilhar</button>
+
                   <button onClick={() => setSugestaoEditada(null)} style={{ background: '#e5e7eb', border: 'none', padding: '8px 12px', borderRadius: 8 }}>Descartar</button>
+
+                  <button
+                    onClick={() => {
+                      // ajustar publishMonth para o mês da sugestão (primeiro dia)
+                      try {
+                        if (!sugestaoEditada || !Array.isArray(sugestaoEditada) || sugestaoEditada.length === 0) return
+                        const primeiro = sugestaoEditada[0].data
+                        const parsed = new Date(primeiro + 'T00:00:00')
+                        if (!isNaN(parsed.getTime())) {
+                          setPublishMonth(`${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}`)
+                        }
+                      } catch (e) { /* ignore */ }
+                    }}
+                    style={{ background: '#1a2a5e', color: '#fff', padding: '8px 10px', borderRadius: 8, fontWeight: 700 }}
+                  >
+                    Usar mês da sugestão
+                  </button>
                 </div>
               </div>
+
               <div style={{ marginTop: 12 }}>
                 {sugestaoEditada.map(dia => (
                   <div key={dia.data} style={{ padding: 12, background: '#fff', borderRadius: 6, border: '1px solid #f3f3f3', marginBottom: 10 }}>
@@ -1043,27 +1017,75 @@ export default function Admin() {
                         <div key={p} style={{ flex: 1, minWidth: 120 }}>
                           <div style={{ fontWeight: 700, color: '#7f1d1d', marginBottom: 6 }}>{p}</div>
                           {Object.entries(dia.turnos[p]).map(([f, n]) => {
-                            const candidatos = membros.filter(m => Array.isArray(m.funcao) ? m.funcao.includes(f) : m.funcao === f)
-                            const includesCurrent = candidatos.some(m => m.nome === n)
+                            const roleName = f
+                            const diaYMD = dia.data
+
+                            // candidatos: pessoas que têm essa função
+                            let candidatos = membros.filter(m => Array.isArray(m.funcao) ? m.funcao.includes(f) : m.funcao === f)
+
+                            // se a função é Holyrics ou OBS, excluímos membros que têm restrição para esta data/periodo
+                            const isRestrictedRole = ['holyrics', 'obs'].includes(String(f).toLowerCase())
+                            if (isRestrictedRole) {
+                              candidatos = candidatos.filter(mem => !pessoaTemRestricaoNoPeriodo({
+                                nomePessoa: mem.nome,
+                                dataEscala: diaYMD,
+                                periodoEscala: p,
+                                membros,
+                                restricoes
+                              }))
+                            }
+
+                            const selectedName = n
+                            const hasRestriction = pessoaTemRestricaoNoPeriodo({
+                              nomePessoa: selectedName,
+                              dataEscala: diaYMD,
+                              periodoEscala: p,
+                              membros,
+                              restricoes
+                            })
+
                             return (
                               <div key={f} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
                                 <div style={{ width: 120, fontSize: 13 }}>{f}</div>
+
                                 <select
-                                  value={n}
+                                  value={selectedName}
                                   onChange={e => {
+                                    const novoValor = e.target.value
                                     const novo = sugestaoEditada.map(sd =>
                                       sd.data === dia.data
-                                        ? { ...sd, turnos: { ...sd.turnos, [p]: { ...sd.turnos[p], [f]: e.target.value } } }
+                                        ? { ...sd, turnos: { ...sd.turnos, [p]: { ...sd.turnos[p], [f]: novoValor } } }
                                         : sd
                                     )
                                     setSugestaoEditada(novo)
                                   }}
-                                  style={{ padding: 8, border: '1px solid #ddd', borderRadius: 6, flex: 1, minWidth: 100 }}
+                                  style={{
+                                    padding: 8,
+                                    border: hasRestriction ? '1px solid #f87171' : '1px solid #ddd',
+                                    borderRadius: 6,
+                                    flex: 1,
+                                    minWidth: 100
+                                  }}
                                 >
                                   <option value="Vago">Vago</option>
                                   {candidatos.map(mem => <option key={mem.id} value={mem.nome}>{mem.nome}</option>)}
-                                  {!includesCurrent && n !== 'Vago' && <option value={n}>{n} (atual)</option>}
+
+                                  {/*
+                                    Se o nome atual não está entre os candidatos mostramos opção (atual),
+                                    EXCETO quando a função é Holyrics/OBS e a pessoa tem restrição (neste caso NÃO mostramos).
+                                  */}
+                                  {!candidatos.some(mem => mem.nome === selectedName) && selectedName !== 'Vago' && selectedName && ! (isRestrictedRole && hasRestriction) && (
+                                    <option value={selectedName}>{selectedName} (atual)</option>
+                                  )}
                                 </select>
+
+                                {/* aviso de restrição (aparece somente quando há restrição e o período é Noite) */}
+                                {(f === 'Som' || f === 'Holyrics') && p === 'Noite' && hasRestriction && (
+                                  <div style={{ color: '#b91c1c', fontSize: 12, marginTop: 6, fontWeight: 700 }}>
+                                    ⚠️ Esta pessoa tem restrição neste dia (sábado anterior ou no próprio domingo).
+                                  </div>
+                                )}
+
                                 {/* ✅ BOTÃO SÁBADO - sugestão */}
                                 {(f === 'Som' || f === 'Holyrics') && n && n !== 'Vago' && p === 'Noite' && (
                                   <button
